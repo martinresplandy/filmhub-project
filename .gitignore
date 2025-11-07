@@ -7,9 +7,6 @@ ads_project-venv/
 __pycache__/
 *.pyc
 
-# Node/React
-frontend/node_modules/
-frontend/build/
 
 # Outros
 .DS_Store
