@@ -40,3 +40,41 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+    
+  backend:
+    name: Backend (Django)
+    runs-on: ubuntu-latest
+    #services:
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install backend deps (requirements.txt if present, else minimal)
+        working-directory: .
+        run: |
+          if [ -f requirements.txt ]; then
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+          else
+            python -m pip install --upgrade pip
+            pip install django djangorestframework
+          fi
+
+      - name: Run migrations (sqlite)
+        working-directory: .
+        run: |
+          python manage.py migrate --noinput || true
+
+      - name: Run Django tests
+        working-directory: .
+        run: |
+          if command -v pytest >/dev/null 2>&1; then
+            pytest -q || (echo "backend tests failed" && exit 1)
+          else
+            python manage.py test || (echo "backend tests failed" && exit 1)
+          fi
