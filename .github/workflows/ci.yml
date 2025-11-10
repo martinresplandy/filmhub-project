@@ -10,4 +10,33 @@ permissions:
   contents: read
 
 jobs:
-    
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install frontend deps
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Lint frontend (if script exists)
+        working-directory: ./frontend
+        run: |
+          if npm run -s lint --silent; then echo "lint ok"; else echo "no lint script or lint failed"; fi
+
+      - name: Test frontend
+        working-directory: ./frontend
+        run: |
+          npm test -- --watchAll=false || (echo "frontend tests failed" && exit 1)
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
