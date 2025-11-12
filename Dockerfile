@@ -54,9 +54,7 @@ COPY --from=frontend-builder /app/frontend/build /usr/src/app/frontend/build
 
 # Collect static files
 # CRITICAL FIX: Pass the DJANGO_SECRET_KEY into the environment only for the collectstatic command
-RUN DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY} \
-    DJANGO_SETTINGS_MODULE=your_project_name.settings \
-    /py/bin/python manage.py collectstatic --noinput
+RUN DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY} DJANGO_SETTINGS_MODULE=your_project_name.settings /py/bin/python manage.py collectstatic --noinput
 # Expose the default port
 EXPOSE 8000
 
