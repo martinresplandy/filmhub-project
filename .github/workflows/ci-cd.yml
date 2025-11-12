@@ -4,8 +4,9 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: ["*"]
+    branches: [main]
 
+# Add 'packages: write' to allow pushing to GitHub Container Registry
 permissions:
   contents: read
   packages: write
@@ -42,6 +43,12 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: ./frontend/build
 
   backend:
     name: Backend (Django)
@@ -80,35 +87,25 @@ jobs:
             python manage.py test || (echo "backend tests failed" && exit 1)
           fi
 
-  upload-artifacts:
-    name: Upload artifacts
-    runs-on: ubuntu-latest
-    needs: [frontend, backend]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Upload frontend build
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: ./frontend/build
-
   build_and_push_image:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: [upload-artifacts] # Must wait for the upload to finish
+
+    needs: [frontend, backend]
+
+    # Only run on push to main
     # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      # 1. Get the Dockerfile and backend code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Get the frontend build files
+      # This download step will now work
       - name: Download frontend build artifact
         uses: actions/download-artifact@v4
         with:
-          name: frontend-build # Must match the 'name' from the upload job
-          path: ./frontend/build # Must match the 'path' from the Dockerfile's COPY command
+          name: frontend-build
+          path: ./frontend/build
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
