@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["*"]
   push:
-    branches: [main, "feature/**", "bugfix/**", "hotfix/**"]
+    branches: ["*"]
 
 permissions:
   contents: "write"
