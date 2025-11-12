@@ -1,0 +1,27 @@
+# Python virtual environments
+
+venv/
+.venv/
+ads_project-venv/
+
+# Compiled Python
+
+**pycache**/
+\*.pyc
+
+# Node.js / React
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+build/
+dist/
+*.log
+
+# Outros
+
+.DS_Store
+.env
