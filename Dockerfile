@@ -54,13 +54,13 @@ COPY --from=frontend-builder /app/frontend/build /usr/src/app/frontend/build
 
 # Collect static files
 # CRITICAL FIX: Pass the DJANGO_SECRET_KEY into the environment only for the collectstatic command
-RUN DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY} DJANGO_SETTINGS_MODULE=your_project_name.settings /py/bin/python manage.py collectstatic --noinput
+RUN DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY} DJANGO_SETTINGS_MODULE=filmhub.settings /py/bin/python manage.py collectstatic --noinput
 # Expose the default port
 EXPOSE 8000
 
 # Run the application using Gunicorn
 # IMPORTANT: Replace 'your_project_name' with your actual Django project folder name
-CMD ["/py/bin/gunicorn", "--bind", "0.0.0.0:8000", "your_project_name.wsgi:application"]
+CMD ["/py/bin/gunicorn", "--bind", "0.0.0.0:8000", "filmhub.wsgi:application"]
 
 # Switch to the non-root user for security
 USER appuser
