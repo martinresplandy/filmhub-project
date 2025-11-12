@@ -96,7 +96,7 @@ jobs:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: [upload-artifacts] # Must wait for the upload to finish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       # 1. Get the Dockerfile and backend code
