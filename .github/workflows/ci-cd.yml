@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: ["*"]
 
 # Add 'packages: write' to allow pushing to GitHub Container Registry
 permissions:
@@ -100,7 +100,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # This download step will now work
       - name: Download frontend build artifact
         uses: actions/download-artifact@v4
         with:
