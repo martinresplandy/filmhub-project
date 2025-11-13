@@ -15,8 +15,7 @@ jobs:
     name: Run CD
     needs: build
 
-    # Only run if the branch is main
-    # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     permissions:
       contents: read
