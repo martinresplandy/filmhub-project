@@ -6,9 +6,12 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from .models import Movie, Rating
 from .serializers import UserSerializer, MovieSerializer, RatingSerializer
+from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view, permission_classes
 
 # View to register new user
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def register(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
@@ -22,6 +25,7 @@ def register(request):
 
 # View login
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def login(request):
     username = request.data.get('username')
     password = request.data.get('password')
