@@ -76,7 +76,7 @@ export default function Auth() {
         <h1 style={{
         fontSize: '48px',
         fontWeight: '800',
-        color: '#2fa700ff',
+        color: '#000000ff',
         textShadow: '0 4px 10px rgba(0,0,0,0.15)',
         marginBottom: '10px'
         }}>
