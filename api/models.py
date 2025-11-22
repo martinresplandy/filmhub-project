@@ -1,4 +1,4 @@
-    # Create your models here.
+# Create your models here.
 from django.db import models
 from django.contrib.auth.models import User  # Usar User que já vem com Django
 from django.core.validators import MinValueValidator, MaxValueValidator
