@@ -20,13 +20,9 @@ export default function MainPage({ user, onLogout }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
     loadMovies();
     loadRecommendations();
-  };
+  }, []);
 
   const loadMovies = async () => {
     setMoviesLoading(true);
