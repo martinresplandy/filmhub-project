@@ -37,7 +37,7 @@ def login(request):
             'token': token.key,
             'user': UserSerializer(user).data
         })
-    return Response({'error': 'Credenciais inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+    return Response({'error': 'Invalid Credentials!'}, status=status.HTTP_401_UNAUTHORIZED)
 
 class MovieViewSet(viewsets.ModelViewSet):
     queryset = Movie.objects.all()
