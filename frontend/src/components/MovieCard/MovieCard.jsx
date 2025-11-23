@@ -3,28 +3,6 @@ import './MovieCard.css';
 
 export default function MovieCard({ movie, onRate, onSelect }) {
   const [userRating, setUserRating] = useState(movie.user_rating || 0);
-  const [showRatingPopup, setShowRatingPopup] = useState(false);
-  const [selectedRating, setSelectedRating] = useState(0);
-
-  const handleOpenPopup = () => {
-    setSelectedRating(userRating);
-    setShowRatingPopup(true);
-  };
-
-  const handleClosePopup = () => {
-    setShowRatingPopup(false);
-    setSelectedRating(0);
-  };
-
-  const handleSubmitRating = () => {
-    if (selectedRating > 0) {
-      setUserRating(selectedRating);
-      if (onRate) {
-        onRate(movie.id, selectedRating);
-      }
-      handleClosePopup();
-    }
-  };
 
   const renderStars = (rating) => {
     const stars = [];
@@ -84,45 +62,7 @@ export default function MovieCard({ movie, onRate, onSelect }) {
                 {renderStars(userRating)}
               </div>
             </div>
-            <button className="rate-button" onClick={handleOpenPopup}>
-              Rate
-            </button>
           </div>
-
-          {}
-          {showRatingPopup && (
-            <div className="rating-popup">
-              <h4 className="rating-popup-title">Rate this movie</h4>
-              
-              <div className="rating-options">
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    key={rating}
-                    className={`rating-option ${selectedRating === rating ? 'selected' : ''}`}
-                    onClick={() => setSelectedRating(rating)}
-                  >
-                    {rating}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="rating-popup-actions">
-                <button 
-                  className="popup-button popup-button-cancel"
-                  onClick={handleClosePopup}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="popup-button popup-button-submit"
-                  onClick={handleSubmitRating}
-                  disabled={selectedRating === 0}
-                >
-                  Submit
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

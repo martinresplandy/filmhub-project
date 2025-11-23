@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import Navbar from '../Navbar/Navbar';
 import SearchBar from '../SearchBar/SearchBar';
 import MovieList from '../MovieList/MovieList';
+import MovieDetails from '../MovieDetails/MovieDetails';
 import { movieService } from '../../services/movieService';
 import './MainPage.css';
 
 export default function MainPage({ user, onLogout }) {
   const [currentView, setCurrentView] = useState('home');
+  const [selectedMovieId, setSelectedMovieId] = useState(null);
   const [movies, setMovies] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -20,9 +22,13 @@ export default function MainPage({ user, onLogout }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
     loadMovies();
     loadRecommendations();
-  }, []);
+  };
 
   const loadMovies = async () => {
     setMoviesLoading(true);
@@ -88,8 +94,13 @@ export default function MainPage({ user, onLogout }) {
   };
 
   const handleSelectMovie = (movie) => {
-    // TODO: Navigate to the movie details page
-    console.log('Selected movie:', movie);
+    setSelectedMovieId(movie.id);
+    setCurrentView('movie-details');
+  };
+
+  const handleBackToMovies = () => {
+    setSelectedMovieId(null);
+    setCurrentView('home');
   };
 
   const handleNavigate = (view) => {
@@ -99,6 +110,17 @@ export default function MainPage({ user, onLogout }) {
   };
 
   const renderContent = () => {
+    if (currentView === 'movie-details' && selectedMovieId) {
+      return (
+        <MovieDetails
+          movieId={selectedMovieId}
+          user={user}
+          onLogout={onLogout}
+          onBack={handleBackToMovies}
+        />
+      );
+    }
+
     if (currentView === 'search' && searchQuery) {
       return (
         <MovieList
@@ -165,29 +187,35 @@ export default function MainPage({ user, onLogout }) {
 
   return (
     <div className="main-page">
-      <Navbar 
-        user={user} 
-        onLogout={onLogout} 
-        onNavigate={handleNavigate}
-      />
-      
-      <div className="main-content">
-        <header className="main-header">
-          <h1 className="main-welcome">
-            Welcome back, {user?.username || 'User'}!
-          </h1>
-          <p className="main-subtitle">
-            Discover your next favorite movie — rate, explore, and get smart recommendations!
-          </p>
-          {(currentView === 'home' || currentView === 'search') && (
-            <SearchBar onSearch={handleSearch} />
-          )}
-        </header>
-        
-        <main className="main-movies">
-          {renderContent()}
-        </main>
-      </div>
+      {currentView === 'movie-details' ? (
+        renderContent()
+      ) : (
+        <>
+          <Navbar 
+            user={user} 
+            onLogout={onLogout} 
+            onNavigate={handleNavigate}
+          />
+          
+          <div className="main-content">
+            <header className="main-header">
+              <h1 className="main-welcome">
+                Welcome back, {user?.username || 'User'}!
+              </h1>
+              <p className="main-subtitle">
+                Discover your next favorite movie – rate, explore, and get smart recommendations!
+              </p>
+              {(currentView === 'home' || currentView === 'search') && (
+                <SearchBar onSearch={handleSearch} />
+              )}
+            </header>
+            
+            <main className="main-movies">
+              {renderContent()}
+            </main>
+          </div>
+        </>
+      )}
     </div>
   );
 }
