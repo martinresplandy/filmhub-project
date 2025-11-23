@@ -38,7 +38,23 @@ export default function Auth() {
         setSuccess(isLogin ? 'Login successful!' : 'Account created successfully!');
         setFormData({ username: '', email: '', password: '' });
       } else {
-        setError(data.error || data.username?.[0] || data.email?.[0] || 'Authentication error');
+        // Processar erros do backend
+        if (data.username) {
+          const errorMsg = Array.isArray(data.username) ? data.username[0] : data.username;
+          setError(errorMsg === 'This field may not be blank.' ? 'Username field may not be blank.' : errorMsg);
+        } else if (data.email) {
+          const errorMsg = Array.isArray(data.email) ? data.email[0] : data.email;
+          setError(errorMsg === 'This field may not be blank.' ? 'Email field may not be blank.' : errorMsg);
+        } else if (data.password) {
+          const errorMsg = Array.isArray(data.password) ? data.password[0] : data.password;
+          setError(errorMsg === 'This field may not be blank.' ? 'Password field may not be blank.' : errorMsg);
+        } else if (data.error) {
+          setError(data.error);
+        } else if (data.detail) {
+          setError(data.detail);
+        } else {
+          setError('Authentication error');
+        }
       }
     } catch (err) {
       setError('Error connecting to server');
@@ -72,15 +88,17 @@ export default function Auth() {
             placeholder="Username"
             value={formData.username}
             onChange={handleChange}
+            required={false}
           />
 
           {!isLogin && (
             <AuthInput
-              type="email"
+              type="text"
               name="email"
               placeholder="Email"
               value={formData.email}
               onChange={handleChange}
+              required={false}
             />
           )}
 
@@ -90,6 +108,7 @@ export default function Auth() {
             placeholder="Password"
             value={formData.password}
             onChange={handleChange}
+            required={false}
           />
 
           <button
