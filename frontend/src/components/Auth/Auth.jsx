@@ -45,14 +45,14 @@ export default function Auth({ onLoginSuccess }) {
         }
       } else {
         if (data.username) {
-          const errorMsg = Array.isArray(data.username) ? data.username[0] : data.username;
-          setError(errorMsg === 'This field may not be blank.' ? 'Username field may not be blank.' : errorMsg);
+          const mesageError = Array.isArray(data.username) ? data.username[0] : data.username;
+          setError(mesageError === 'This field may not be blank.' ? 'Username field may not be blank.' : mesageError);
         } else if (data.email) {
-          const errorMsg = Array.isArray(data.email) ? data.email[0] : data.email;
-          setError(errorMsg === 'This field may not be blank.' ? 'Email field may not be blank.' : errorMsg);
+          const mesageError = Array.isArray(data.email) ? data.email[0] : data.email;
+          setError(mesageError === 'This field may not be blank.' ? 'Email field may not be blank.' : mesageError);
         } else if (data.password) {
-          const errorMsg = Array.isArray(data.password) ? data.password[0] : data.password;
-          setError(errorMsg === 'This field may not be blank.' ? 'Password field may not be blank.' : errorMsg);
+          const mesageError = Array.isArray(data.password) ? data.password[0] : data.password;
+          setError(mesageError === 'This field may not be blank.' ? 'Password field may not be blank.' : mesageError);
         } else if (data.error) {
           setError(data.error);
         } else if (data.detail) {

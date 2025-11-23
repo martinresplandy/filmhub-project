@@ -2,7 +2,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 
-def validate_email_format(email):
+def validate_email(email):
     if '@' not in email:
         raise ValidationError('Email format is invalid. Use format: name@example.com')
     
@@ -39,6 +39,6 @@ def validate_password_strength(password):
     if errors:
         raise ValidationError(errors)
 
-def validate_username_not_empty(username):
+def validate_username(username):
     if not username or username.strip() == '':
         raise ValidationError('Username cannot be empty.')

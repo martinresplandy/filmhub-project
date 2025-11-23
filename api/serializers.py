@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import Movie, Rating
-from .validators import (validate_email_format, validate_email_unique, validate_password_strength, validate_username_not_empty)
+from .validators import (validate_email, validate_email_unique, validate_password_strength, validate_username)
 from django.db.models import Avg
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,21 +12,24 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'password']
         extra_kwargs = {
             'username': {
-                'validators': [validate_username_not_empty],
+                'validators': [validate_username],
                 'required': True,
                 'allow_blank': False
             },
             'email': {
-                'validators': [validate_email_format, validate_email_unique],
+                'validators': [validate_email, validate_email_unique],
                 'required': True,
                 'allow_blank': False
             },
             'password': {
-                'validators': [validate_password_strength],
                 'write_only': True,
                 'required': True
             }
         }
+
+    def validate_password(self, value):
+        validate_password_strength(value)
+        return value
 
     def create(self, validated_data):
         user = User.objects.create_user(
