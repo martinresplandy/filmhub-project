@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '../Navbar/Navbar';
 import SearchBar from '../SearchBar/SearchBar';
 import MovieList from '../MovieList/MovieList';
@@ -21,16 +21,7 @@ export default function MainPage({ user, onLogout }) {
   
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  const loadInitialData = async () => {
-    loadMovies();
-    loadRecommendations();
-  };
-
-  const loadMovies = async () => {
+  const loadMovies = useCallback(async () => {
     setMoviesLoading(true);
     setMoviesError('');
     try {
@@ -44,9 +35,9 @@ export default function MainPage({ user, onLogout }) {
     } finally {
       setMoviesLoading(false);
     }
-  };
+  }, []);
 
-  const loadRecommendations = async () => {
+  const loadRecommendations = useCallback(async () => {
     setRecommendationsLoading(true);
     setRecommendationsError('');
     try {
@@ -60,7 +51,16 @@ export default function MainPage({ user, onLogout }) {
     } finally {
       setRecommendationsLoading(false);
     }
-  };
+  }, []);
+
+  const loadInitialData = useCallback(async () => {
+    loadMovies();
+    loadRecommendations();
+  }, [loadMovies, loadRecommendations]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   const handleSearch = async (query) => {
     setSearchQuery(query);

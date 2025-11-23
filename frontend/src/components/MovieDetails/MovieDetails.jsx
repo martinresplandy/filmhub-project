@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { movieService } from '../../services/movieService';
 import Navbar from '../Navbar/Navbar';
 import './MovieDetails.css';
@@ -11,11 +11,7 @@ export default function MovieDetails({ movieId, user, onLogout, onBack }) {
   const [selectedRating, setSelectedRating] = useState(0);
   const [userRating, setUserRating] = useState(0);
 
-  useEffect(() => {
-    loadMovieDetails();
-  }, [movieId]);
-
-  const loadMovieDetails = async () => {
+  const loadMovieDetails = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -28,7 +24,11 @@ export default function MovieDetails({ movieId, user, onLogout, onBack }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [movieId]);
+
+  useEffect(() => {
+    loadMovieDetails();
+  }, [loadMovieDetails]);
 
   const handleOpenRatingModal = () => {
     setSelectedRating(userRating);

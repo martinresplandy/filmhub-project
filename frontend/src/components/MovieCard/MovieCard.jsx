@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import './MovieCard.css';
 
-export default function MovieCard({ movie, onRate, onSelect }) {
-  const [userRating, setUserRating] = useState(movie.user_rating || 0);
+export default function MovieCard({ movie, onSelect }) {
+  const userRating = movie.user_rating || 0;
 
   const renderStars = (rating) => {
     const stars = [];
