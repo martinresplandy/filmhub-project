@@ -3,7 +3,7 @@ import { authService } from '../../services/authService';
 import { AuthInput } from './AuthInput';
 import './Auth.css';
 
-export default function Auth() {
+export default function Auth({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,6 +37,12 @@ export default function Auth() {
         authService.saveToken(data.token, data.user);
         setSuccess(isLogin ? 'Login successful!' : 'Account created successfully!');
         setFormData({ username: '', email: '', password: '' });
+        
+        if (onLoginSuccess) {
+          setTimeout(() => {
+            onLoginSuccess(data.user);
+          }, 500);
+        }
       } else {
         // Processar erros do backend
         if (data.username) {
@@ -121,7 +127,7 @@ export default function Auth() {
         </form>
 
         <p className="auth-footer">
-          {isLogin ? 'Don’t have an account?' : 'Already have an account?'}
+          {isLogin ? "Don't have an account?" : 'Already have an account?'}
           {' '}
           <button
             type="button"
