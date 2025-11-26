@@ -1,6 +1,6 @@
 // src/pages/MainPage/MainPage.jsx
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
 import Navbar from "../../components/Navbar/Navbar";
 import SearchBar from "../../components/SearchBar/SearchBar";
