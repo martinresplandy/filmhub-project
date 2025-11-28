@@ -25,7 +25,7 @@ COPY . .
 # --- This is the key part for the frontend ---
 # Copy the pre-built frontend files (from the CI job artifact)
 # into the location your Django app serves static files from.
-#COPY ./frontend/build /app/staticfiles
+COPY ./frontend/build /app/staticfiles
 # ----------------------------------------------
 
 # Expose the port the app runs on
