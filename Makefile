@@ -13,6 +13,8 @@ migrate :
 	python manage.py makemigrations
 	python manage.py migrate
 ifdef INIT
+	@echo "Skipping super user creation."
+else
 	@echo "Initializing database with super user..."
 	python manage.py createsuperuser
 endif
