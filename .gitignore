@@ -7,6 +7,10 @@ ads_project-venv/
 __pycache__/
 *.pyc
 
+# DB files
+*.sqlite3
+api/migrations
+
 # Node.js / React
 node_modules/
 npm-debug.log*
