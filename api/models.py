@@ -30,14 +30,8 @@ class Movie(models.Model):
     def __str__(self):  
         return self.title
     
-    def add_movie_if_not_exists(self):
-        # Quick check for existing movie based on external_id
-        existing_movie = Movie.objects.filter(external_id=self.external_id).first()
-        if existing_movie:
-            # Return the existing object if found
-            return existing_movie
-        
-        # If the movie doesn't exist, proceed to API call
+    def create_movie_from_external_id(self):
+        # If the movie doesn't exist (tested in the previous function), proceed to API call
         try:
             # Construct the API URL and headers
             api_url = f"{API_BASE_URL}/movie/{self.external_id}"

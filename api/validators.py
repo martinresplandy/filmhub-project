@@ -61,6 +61,17 @@ def validate_unique_movie(title, description, genre, duration, year, instance=No
         # Raise a Django REST Framework ValidationError instead of Django's
         raise ValidationError('A movie with the same title, description, genre, and year already exists.')
     
+def get_or_create_movie_from_external_id(movie_id):
+    movie = None
+    try:
+        movie = Movie.objects.get(external_id=movie_id)
+    except Movie.DoesNotExist:
+        Movie_obj = Movie(external_id=movie_id)
+        movie = Movie_obj.create_movie()
+        if not movie:
+            return None
+    return movie
+    
 def validate_rating_score(score):
     if score < 1 or score > 5:
         raise ValidationError('Rating score must be between 1 and 5.')
