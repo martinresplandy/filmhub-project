@@ -2,26 +2,22 @@
 import { useState, useEffect, useCallback } from "react";
 // import { useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
-import Navbar from "../../components/Navbar/Navbar";
 import SearchBar from "../../components/SearchBar/SearchBar";
 import MovieList from "../../components/MovieList/MovieList";
-import MovieDetails from "../../components/MovieDetails/MovieDetails";
 import { movieService } from "../../services/movieService";
 import "./MainPage.css";
 
 export default function MainPage() {
-  const { auth, logout } = useAuth();
+  const { auth } = useAuth();
 
   const [currentView, setCurrentView] = useState("home");
-  const [selectedMovieId, setSelectedMovieId] = useState(null);
   const [movies, setMovies] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [moviesLoading, setMoviesLoading] = useState(true);
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [moviesError, setMoviesError] = useState("");
-  const [recommendationsError, setRecommendationsError] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  // const [searchQuery, setSearchQuery] = useState("");
 
   const loadMovies = useCallback(async () => {
     setMoviesLoading(true);
@@ -39,7 +35,6 @@ export default function MainPage() {
 
   const loadRecommendations = useCallback(async () => {
     setRecommendationsLoading(true);
-    setRecommendationsError("");
     try {
       const recommendationsData = await movieService.getRecommendations();
       setRecommendations(
@@ -47,7 +42,6 @@ export default function MainPage() {
       );
     } catch (err) {
       console.error("Error loading recommendations:", err);
-      setRecommendationsError("Error loading recommendations.");
     } finally {
       setRecommendationsLoading(false);
     }
@@ -63,7 +57,7 @@ export default function MainPage() {
   }, [loadInitialData]);
 
   const handleSearch = async (query) => {
-    setSearchQuery(query);
+    // setSearchQuery(query);
     if (!query) {
       setSearchResults([]);
       setCurrentView("home");
@@ -72,7 +66,7 @@ export default function MainPage() {
     setMoviesLoading(true);
     setMoviesError("");
     try {
-      const results = await movieService.searchMovies(query);
+      const results = await movieService.searchMovies();
       setSearchResults(Array.isArray(results) ? results : []);
       setCurrentView("search");
     } catch (err) {
@@ -90,11 +84,6 @@ export default function MainPage() {
     } catch (err) {
       console.error("Error rating movie:", err);
     }
-  };
-
-  const handleSelectMovie = (movie) => {
-    setSelectedMovieId(movie.id);
-    setCurrentView("movie-details");
   };
 
   return (
@@ -117,13 +106,20 @@ export default function MainPage() {
 
           <main className="main-movies">
             <>
+              {searchResults.length > 0 && (
+                <MovieList
+                  title="Recommended for You"
+                  movies={searchResults.slice(0, 5)}
+                  loading={false}
+                  onRate={handleRate}
+                />
+              )}
               {!recommendationsLoading && recommendations.length > 0 && (
                 <MovieList
                   title="Recommended for You"
                   movies={recommendations.slice(0, 5)}
                   loading={false}
                   onRate={handleRate}
-                  onSelectMovie={handleSelectMovie}
                 />
               )}
 
@@ -133,7 +129,6 @@ export default function MainPage() {
                 loading={moviesLoading}
                 error={moviesError}
                 onRate={handleRate}
-                onSelectMovie={handleSelectMovie}
               />
             </>
           </main>
