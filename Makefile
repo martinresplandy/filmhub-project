@@ -1,8 +1,10 @@
-INIT =
 
-.PHONY: all install migrate run test clear 
+
+.PHONY: all install migrate super_migrate run test clear 
 
 all : clear install migrate test run
+
+super_all : clear install super_migrate test run
 
 install :
 	@echo "NOTE : You first need to set up a virtual environment."
@@ -10,16 +12,18 @@ install :
 	pip install -r ./api/requirements.txt
 	@echo "Build completed."
 
-migrate :
+migrate:
 	@echo "Running database migrations..."
 	python manage.py makemigrations
 	python manage.py migrate
-ifdef INIT
-	@echo "Skipping super user creation."
-else
+	@echo "Database migrations completed."
+
+super_migrate :
+	@echo "Running database migrations..."
+	python manage.py makemigrations
+	python manage.py migrate
 	@echo "Initializing database with super user..."
 	python manage.py createsuperuser
-endif
 	@echo "Database migrations completed."
 
 run :
