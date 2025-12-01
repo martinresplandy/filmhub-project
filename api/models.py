@@ -40,16 +40,67 @@ class UserProfile(models.Model):
                 movie_keywords = [k.strip() for k in movie.keyword.split(',')]
                 liked_keywords.update(movie_keywords)
         # Find movies that match liked genres or keywords
-        # Construct the API URL and headers
-        api_url = f"{API_BASE_URL}/movie/{self.external_id}"
+        # Construct the header
         headers = {
             "accept": "application/json",
         }
-        params = {
-            "api_key": API_KEY,
-        }
-        recommended_set = set()
-        return None
+        
+        recommended_set = {}
+        GENRE_POINTS = 1
+        for genre_id in liked_genres:
+            # Construct the request URL and params
+            api_url = f"{API_BASE_URL}/discover/movie"
+            params = {
+                "api_key": API_KEY,
+                "with_genres": genre_id,
+                "sort_by": "popularity.desc",
+                "page": 1
+            }
+            # Execute the API Request
+            response = requests.get(api_url, headers=headers, params=params)
+            response.raise_for_status() # Raise exception for bad status codes (4xx or 5xx)
+            data = response.json()
+            for item in data.get('results', []):
+                movie_id = item['id']
+                if movie_id not in recommended_set:
+                    recommended_set[movie_id] = GENRE_POINTS
+                else:
+                    recommended_set[movie_id] += GENRE_POINTS
+        KEYWORD_POINTS = 3
+        for keyword_id in liked_keywords:
+            # Construct the request URL and params
+            api_url = f"{API_BASE_URL}/discover/movie"
+            params = {
+                "api_key": API_KEY,
+                "with_keywords": keyword_id,
+                "sort_by": "popularity.desc",
+                "page": 1
+            }
+            # Execute the API Request
+            response = requests.get(api_url, headers=headers, params=params)
+            response.raise_for_status() # Raise exception for bad status codes (4xx or 5xx)
+            data = response.json()
+            for item in data.get('results', []):
+                movie_id = item['id']
+                if movie_id not in recommended_set:
+                    recommended_set[movie_id] = KEYWORD_POINTS
+                else:
+                    recommended_set[movie_id] += KEYWORD_POINTS
+        # if the movie is already watched or in watchlist, skip it
+        watched_ids = set(self.watched_movies.values_list('external_id', flat=True))
+        watchlist_ids = set(self.watch_list.values_list('external_id', flat=True))
+        for movie_id, score in recommended_set.items():
+            if movie_id in watched_ids or movie_id in watchlist_ids:
+                continue
+            movie = None
+            try:
+                movie = Movie.objects.get(external_id=movie_id)
+            except Movie.DoesNotExist:
+                movie_obj = Movie(external_id=movie_id)
+                movie = movie_obj.create_movie_from_external_id()
+            if movie:
+                self.recommended_movies.add(movie)
+        return self.recommended_movies.all()
         
             
 
