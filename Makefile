@@ -2,11 +2,11 @@
 
 .PHONY: all install migrate super_migrate run test clear 
 
-all : clear install migrate test run
+all : clear install-deps migrate test run
 
-super_all : clear install super_migrate test run
+super_all : clear install-deps super_migrate test run
 
-install :
+install-deps :
 	@echo "NOTE : You first need to set up a virtual environment."
 	@echo "Building the project..."
 	pip install -r ./api/requirements.txt

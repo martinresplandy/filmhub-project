@@ -60,7 +60,7 @@ jobs:
       - name: Install backend deps (requirements.txt if present, else minimal)
         working-directory: .
         run: |
-          make build
+          make install-deps
 
       - name: Run migrations (sqlite)
         working-directory: .
