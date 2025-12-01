@@ -4,13 +4,15 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+import requests
+import time
 
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, permission_classes
 
 from .validators import get_or_create_movie_from_external_id
-from .models import Movie, Rating, UserProfile
+from .models import Movie, Rating, UserProfile, API_BASE_URL, API_KEY
 from .serializers import UserSerializer, MovieSerializer, RatingSerializer
 from .permissions import IsSuperUserOrReadOnly
 
@@ -146,3 +148,75 @@ def movie_by_id(request):
     
     serializer = MovieSerializer(movie)
     return Response(serializer.data)
+
+# **** MOVIES CATALOG **** #
+GENRE_MAP = {
+    28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
+    80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
+    14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music",
+    9648: "Mystery", 10749: "Romance", 878: "Science Fiction",
+    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western",
+}
+
+# This view is used to get the movies catalog or search 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def movies_catalog(request):
+    search_query = request.GET.get('search', '').strip()
+
+    # We need to decide how many pages we want to search , beacuse if it is like a genre it will have lots and lots of movies
+    if search_query:
+        url = f"{API_BASE_URL}/search/movie"
+        params = {"api_key": API_KEY, "query": search_query, "page": 1}
+        response = requests.get(url, params=params)
+        data = response.json()
+        all_results = data.get('results', [])
+        
+        result = []
+        for movie in all_results:
+            genre_ids = movie.get('genre_ids', [])
+            genres = [GENRE_MAP.get(gid, "Unknown") for gid in genre_ids]
+            release_date = movie.get('release_date', '')
+            year = int(release_date.split('-')[0]) if release_date else None
+            poster_path = movie.get('poster_path')
+            poster_url = f"https://image.tmdb.org/t/p/w185{poster_path}" if poster_path else None
+            
+            result.append({
+                "external_id": movie.get('id'),
+                "title": movie.get('title', ''),
+                "poster_url": poster_url,
+                "genre": ", ".join(genres) if genres else "Unknown",
+                "year": year,
+                "average_rating": round(movie.get('vote_average', 0), 1),
+            })
+        return Response(result)
+    
+    all_movies = []
+    for page in range(1, 6):
+        url = f"{API_BASE_URL}/movie/popular"
+        params = {"api_key": API_KEY, "page": page}
+        response = requests.get(url, params=params)
+        data = response.json()
+        all_movies.extend(data.get('results', []))
+        if len(all_movies) >= 100:
+            break
+    
+    result = []
+    for movie in all_movies[:100]:
+        genre_ids = movie.get('genre_ids', [])
+        genres = [GENRE_MAP.get(gid, "Unknown") for gid in genre_ids]
+        release_date = movie.get('release_date', '')
+        year = int(release_date.split('-')[0]) if release_date else None
+        poster_path = movie.get('poster_path')
+        poster_url = f"https://image.tmdb.org/t/p/w185{poster_path}" if poster_path else None
+        
+        result.append({
+            "external_id": movie.get('id'),
+            "title": movie.get('title', ''),
+            "poster_url": poster_url,
+            "genre": ", ".join(genres) if genres else "Unknown",
+            "year": year,
+            "average_rating": round(movie.get('vote_average', 0), 1),
+        })
+    
+    return Response(result)

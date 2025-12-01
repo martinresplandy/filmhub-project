@@ -5,11 +5,37 @@ ads_project-venv/
 
 # Compiled Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# DB files
-*.sqlite3
-api/migrations
+# Django
+*.log
+*.pot
+db.sqlite3
+db.sqlite3-journal
+local_settings.py
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
 
 # Node.js / React
 node_modules/
@@ -20,12 +46,18 @@ yarn-error.log*
 .pnp.js
 build/
 dist/
-*.log
+.cache/
 
-# Outros
-.DS_Store
-.env
+# React build
+frontend/build/
 
-# Django SQLite database
-db.sqlite3
-*.sqlite3
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Static files
+staticfiles/
+static_root/
+media/
