@@ -31,7 +31,7 @@ After this step, you will have to change your environment source with :
 
 > source .venv/bin/activate
 
-Once you are on your virtual environment (it should be like ...), you can build and run the project with
+Once you are on your virtual environment (it should be like (.venv)[user]@[computer_name]), you can build and run the project with
 
 > make super_backend
 
