@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: filmhub_postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: film123hub
+      POSTGRES_DB: filmhub_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist data to avoid data loss on container restart
+      # TO DEFINE
+      - postgres_data:/var/lib/postgresql/data
+      
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

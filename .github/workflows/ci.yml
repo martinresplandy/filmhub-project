@@ -68,7 +68,7 @@ jobs:
       DB_NAME: filmhub_db
       DB_USER: postgres
       DB_PASSWORD: film123hub
-      DB_HOST: localhost
+      DB_HOST: postgres
       DB_PORT: 5432
     
     steps:
@@ -83,7 +83,7 @@ jobs:
       - name: Install backend deps (requirements.txt if present, else minimal)
         working-directory: .
         run: |
-          make install-deps
+          make install
 
       - name: Run migrations (PostgreSQL)
         working-directory: .

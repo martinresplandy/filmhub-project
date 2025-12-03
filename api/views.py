@@ -12,10 +12,10 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, permission_classes
 
 from .validators import get_or_create_movie_from_external_id, get_or_search_movie_from_external_id
-from .models import Movie, Rating, UserProfile, API_BASE_URL, API_KEY
+from .models import Movie, Rating, UserProfile
 from .serializers import UserSerializer, MovieSerializer, RatingSerializer
 from .permissions import IsSuperUserOrReadOnly
-from .utils import update_recommendations
+from .utils import update_recommendations, API_BASE_URL, API_KEY
 
 # ****  USER **** #
 
@@ -156,6 +156,7 @@ def movie_by_id(request):
     return Response(serializer.data)
 
 # **** MOVIES CATALOG **** #
+
 GENRE_MAP = {
     28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
     80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",

@@ -32,10 +32,10 @@ After this step, you will have to change your environment source with :
 
 Once you are on your virtual environment (it should be like ...), you can build and run the project with
 
-> make super_all
+> make super_backend
 
 _if you want to create a super user in your terminal_
 
-> make all
+> make backend
 
 _otherwise_
