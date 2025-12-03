@@ -22,6 +22,7 @@ to start the frontend cd frontend : npm start
 # BACKEND
 
 ## Configure the backend
+
 The easiest way to configure the backend and install the dependencies is to create a virtual environment with the command :
 
 > python3 -m venv .venv
