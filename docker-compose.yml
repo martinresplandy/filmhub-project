@@ -8,10 +8,12 @@ services:
       POSTGRES_DB: filmhub_db
     ports:
       - "5432:5432"
-    volumes:
+    # volumes:
+      # Initialize the database with a seed script
+      # - ./db-init:/docker-entrypoint-initdb.d
       # Persist data to avoid data loss on container restart
       # TO DEFINE
-      - postgres_data:/var/lib/postgresql/data
+      # - ./postgres_data:/var/lib/postgresql/data
       
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -19,5 +21,5 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
+# volumes:
+#  postgres_data:

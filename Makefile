@@ -60,7 +60,8 @@ test: install startDB wait_for_db
 	@echo "Tests completed."
 
 clear:
-	@echo "Cleaning up DB files..."
+	@echo "Cleaning up DB files and Docker container..."
 	rm -f *.sqlite3
 	find ./api/migrations ! -name '__init__.py' -type f -exec rm -f {} +
+	docker compose down -v
 	@echo "Cleanup completed."
