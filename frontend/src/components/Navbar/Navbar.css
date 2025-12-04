@@ -66,11 +66,17 @@
   padding: 8px 16px;
   cursor: pointer;
   border-radius: 20px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .navbar-user-btn:hover {
   background-color: #f0f0f0;
+  transform: translateY(-1px);
+}
+
+.navbar-user-btn.active {
+  background-color: #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-dropdown {
@@ -83,6 +89,18 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   min-width: 150px;
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 0;
+}
+
+.navbar-dropdown.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
+  max-height: 200px;
 }
 
 .navbar-dropdown-item {
@@ -95,11 +113,18 @@
   font-size: 14px;
   color: #333;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.15s ease;
+  position: relative;
 }
 
 .navbar-dropdown-item:hover {
   background-color: #f5f5f5;
+  transform: translateX(4px);
+}
+
+.navbar-dropdown-item:active {
+  transform: translateX(2px);
+  background-color: #eeeeee;
 }
 
 .navbar-logout {
@@ -109,4 +134,9 @@
 
 .navbar-logout:hover {
   background-color: #fee;
+  color: #aa0000;
+}
+
+.navbar-logout:active {
+  background-color: #fdd;
 }

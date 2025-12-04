@@ -1,14 +1,13 @@
-import MovieCard from '../MovieCard/MovieCard';
-import './MovieList.css';
+import MovieCard from "../MovieCard/MovieCard";
+import "./MovieList.css";
 
-export default function MovieList({ 
-  movies, 
-  title, 
-  loading, 
-  error, 
-  onRate, 
-  onSelectMovie,
-  emptyMessage = "No movies found" 
+export default function MovieList({
+  movies,
+  title,
+  loading,
+  error,
+  onRate,
+  emptyMessage = "No movies found",
 }) {
   if (loading) {
     return (
@@ -50,12 +49,7 @@ export default function MovieList({
       {title && <h2 className="movie-list-title">{title}</h2>}
       <div className="movie-list-grid">
         {movies.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            onRate={onRate}
-            onSelect={onSelectMovie}
-          />
+          <MovieCard key={movie.id} movie={movie} onRate={onRate} />
         ))}
       </div>
     </div>

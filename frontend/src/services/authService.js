@@ -32,4 +32,43 @@ export const authService = {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
   },
+
+  getProfile: async () => {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_URL}/profile/`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error("Failed to fetch profile");
+    }
+    return response.json();
+  },
+
+  updateProfile: async (username, email, password) => {
+    const token = localStorage.getItem("token");
+    const body = { username, email };
+    if (password) {
+      body.password = password;
+    }
+    const response = await fetch(`${API_URL}/profile/`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw error;
+    }
+    const data = await response.json();
+    // Update stored user data
+    localStorage.setItem("user", JSON.stringify(data));
+    return data;
+  },
 };

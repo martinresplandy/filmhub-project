@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; // <--- 1. Import Router Hooks
-import useAuth from "../../hooks/useAuth"; // <--- 2. Import your Auth Hook
+import { useNavigate, useLocation } from "react-router-dom";
+import useAuth from "../../hooks/useAuth";
 import { authService } from "../../services/authService";
 import { AuthInput } from "./AuthInput";
 import "./Auth.css";
@@ -10,7 +10,7 @@ export default function Auth() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/"; // Default to home if no history
+  const from = location.state?.from?.pathname || "/";
 
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
