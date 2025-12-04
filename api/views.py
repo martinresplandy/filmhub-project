@@ -14,7 +14,15 @@ from .validators import get_or_create_movie_from_external_id, get_or_search_movi
 from .models import Movie, Rating, UserProfile
 from .serializers import UserSerializer, MovieSerializer, RatingSerializer
 from .permissions import IsSuperUserOrReadOnly
-from .utils import update_recommendations, API_BASE_URL, API_KEY
+from .utils import (
+    update_recommendations, 
+    API_BASE_URL, 
+    API_KEY, 
+    format_movie, 
+    fetch_movies, 
+    search_by_director, 
+    search_by_genre
+)
 
 # ****  USER **** #
 
@@ -50,7 +58,7 @@ def login(request):
 
 # ****  RATING **** #
 
-@api_view(['GET', 'POST', 'UPDATE'])
+@api_view(['GET', 'POST', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def ratings(request):
     if request.method == 'GET':
@@ -75,9 +83,21 @@ def ratings(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    elif request.method == 'UPDATE':
-        # TODO: Implement update logic for ratings
-        serializer = RatingSerializer(data=request.data)
+    elif request.method == 'PATCH':
+        # Update existing rating by movie external_id
+        movie_external_id = request.data.get('movie')
+        if not movie_external_id:
+            return Response({'error': 'Movie external_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            rating = Rating.objects.get(id=rating_id, user=request.user)
+        except Rating.DoesNotExist:
+            return Response({'error': 'Rating not found. You need to create a rating first using POST.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = RatingSerializer(rating, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # **** WATCHED MOVIES **** #
@@ -147,7 +167,8 @@ def movie_by_id(request):
     if not external_id:
         return Response({'error': 'external_id parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    movie = get_or_search_movie_from_external_id(external_id)
+    # This will fetch from API if movie doesn't exist in database
+    movie = get_or_create_movie_from_external_id(external_id)
     if not movie:
         return Response({'error': 'Movie not found.'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -155,154 +176,6 @@ def movie_by_id(request):
     return Response(serializer.data)
 
 # **** MOVIES CATALOG **** #
-
-# Map of genre IDs to names
-GENRE_MAP = {
-    28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
-    80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
-    14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music",
-    9648: "Mystery", 10749: "Romance", 878: "Science Fiction",
-    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western",
-}
-
-def format_movie(movie):
-    # check if movie has the required fields
-    title = movie.get('title', '').strip()
-    poster = movie.get('poster_path')
-    movie_id = movie.get('id')
-    
-    if not title or not poster or not movie_id:
-        return None
-    
-    # get genres
-    genre_ids = movie.get('genre_ids', [])
-    genre_names = []
-    for genre_id in genre_ids:
-        if genre_id in GENRE_MAP:
-            genre_names.append(GENRE_MAP[genre_id])
-        else:
-            genre_names.append("Unknown")
-    
-    if genre_names:
-        genre_string = ", ".join(genre_names)
-    else:
-        genre_string = "Unknown"
-    
-    # extract year
-    date = movie.get('release_date', '')
-    year = None
-    if date:
-        try:
-            year = int(date.split('-')[0])
-        except:
-            pass
-    
-    # build poster url
-    poster_url = f"https://image.tmdb.org/t/p/w185{poster}"
-    
-    # get rating
-    rating = movie.get('vote_average', 0)
-    try:
-        rating_float = round(float(rating), 1)
-    except:
-        rating_float = 0.0
-    
-    return {
-        "external_id": movie_id,
-        "title": title,
-        "poster_url": poster_url,
-        "genre": genre_string,
-        "year": year,
-        "average_rating": rating_float,
-    }
-
-def fetch_movies(url, params, limit=20):
-    try:
-        response = requests.get(url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
-        
-        result = []
-        for movie in movies:
-            if len(result) >= limit:
-                break
-            
-            formatted = format_movie(movie)
-            if formatted:
-                result.append(formatted)
-        
-        return result
-    except Exception as e:
-        return []
-
-def search_by_director(director_name):
-    try:
-        # search for the person first
-        url = f"{API_BASE_URL}/search/person"
-        params = {"api_key": API_KEY, "query": director_name, "page": 1}
-        response = requests.get(url, params=params)
-        data = response.json()
-        people = data.get('results', [])
-        
-        if not people:
-            return []
-        
-        # get the first person found (usually the most popular one)
-        person_id = people[0].get('id')
-        
-        # now get all movies this person worked on
-        url = f"{API_BASE_URL}/person/{person_id}/movie_credits"
-        params = {"api_key": API_KEY}
-        response = requests.get(url, params=params)
-        data = response.json()
-        crew = data.get('crew', [])
-        
-        result = []
-        for job in crew:
-            if len(result) >= 20:
-                break
-            
-            # only get movies where they were director
-            if job.get('job') == 'Director':
-                formatted = format_movie(job)
-                if formatted:
-                    result.append(formatted)
-        
-        return result
-    except:
-        return []
-
-def search_by_genre(genre_name):
-    try:
-        # look up the genre id
-        genre_id = None
-        for gid, gname in GENRE_MAP.items():
-            if gname.lower() == genre_name.lower():
-                genre_id = gid
-                break
-        
-        if not genre_id:
-            return []
-        
-        # get movies for this genre
-        url = f"{API_BASE_URL}/discover/movie"
-        params = {"api_key": API_KEY, "with_genres": genre_id, "sort_by": "popularity.desc", "page": 1}
-        response = requests.get(url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
-        
-        result = []
-        for movie in movies:
-            if len(result) >= 20:
-                break
-            
-            formatted = format_movie(movie)
-            if formatted:
-                result.append(formatted)
-        
-        return result
-    except:
-        return []
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

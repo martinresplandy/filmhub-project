@@ -4,7 +4,13 @@ from api.models import Movie
 
 API_BASE_URL = "https://api.themoviedb.org/3" 
 API_KEY = "ed6c1919d48f4231cb8f449cfe728211"
-GENRE_MAP = {}
+GENRE_MAP = {
+    28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
+    80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
+    14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music",
+    9648: "Mystery", 10749: "Romance", 878: "Science Fiction",
+    10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western",
+}
 GENRE_POINTS = 1
 KEYWORD_MAP = {}
 KEYWORD_POINTS = 3
@@ -97,7 +103,7 @@ def update_recommendations(self):
                 movie = Movie.objects.get(external_id=movie_id)
             except Movie.DoesNotExist:
                 movie_obj = Movie(external_id=movie_id)
-                movie = movie_obj.create_movie_from_external_id()
+                movie = create_movie_from_external_id(movie_obj)
             if movie:
                 self.recommended_movies.add(movie)
                 # Limit to 20 recommendations
@@ -179,3 +185,182 @@ def create_movie_from_external_id(self):
             # Handle JSON parsing or other general errors
             print(f"General Error processing movie {self.external_id}: {e}")
             return None
+
+# **** MOVIE FORMAT AND SEARCH **** #
+
+def format_movie(movie):
+    """
+    Formats movie data from TMDB API to the format used in the frontend.
+    
+    Args:
+        movie: Dictionary with movie data from TMDB API
+        
+    Returns:
+        Formatted dictionary or None if data is invalid
+    """
+    # check if movie has the required fields
+    title = movie.get('title', '').strip()
+    poster = movie.get('poster_path')
+    movie_id = movie.get('id')
+    
+    if not title or not poster or not movie_id:
+        return None
+    
+    # get genres
+    genre_ids = movie.get('genre_ids', [])
+    genre_names = []
+    for genre_id in genre_ids:
+        if genre_id in GENRE_MAP:
+            genre_names.append(GENRE_MAP[genre_id])
+        else:
+            genre_names.append("Unknown")
+    
+    if genre_names:
+        genre_string = ", ".join(genre_names)
+    else:
+        genre_string = "Unknown"
+    
+    # extract year
+    date = movie.get('release_date', '')
+    year = None
+    if date:
+        try:
+            year = int(date.split('-')[0])
+        except:
+            pass
+    
+    # build poster url
+    poster_url = f"https://image.tmdb.org/t/p/w185{poster}"
+    
+    # get rating
+    rating = movie.get('vote_average', 0)
+    try:
+        rating_float = round(float(rating), 1)
+    except:
+        rating_float = 0.0
+    
+    return {
+        "external_id": movie_id,
+        "title": title,
+        "poster_url": poster_url,
+        "genre": genre_string,
+        "year": year,
+        "average_rating": rating_float,
+    }
+
+def fetch_movies(url, params, limit=20):
+    """
+    Fetches movies from TMDB API and returns formatted list.
+    
+    Args:
+        url: TMDB API URL
+        params: Request parameters
+        limit: Maximum number of movies to return (default: 20)
+        
+    Returns:
+        List of formatted movies
+    """
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+        movies = data.get('results', [])
+        
+        result = []
+        for movie in movies:
+            if len(result) >= limit:
+                break
+            
+            formatted = format_movie(movie)
+            if formatted:
+                result.append(formatted)
+        
+        return result
+    except Exception as e:
+        return []
+
+def search_by_director(director_name):
+    """
+    Searches for movies by director.
+    
+    Args:
+        director_name: Director's name
+        
+    Returns:
+        List of director's movies formatted
+    """
+    try:
+        # search for the person first
+        url = f"{API_BASE_URL}/search/person"
+        params = {"api_key": API_KEY, "query": director_name, "page": 1}
+        response = requests.get(url, params=params)
+        data = response.json()
+        people = data.get('results', [])
+        
+        if not people:
+            return []
+        
+        # get the first person found (usually the most popular one)
+        person_id = people[0].get('id')
+        
+        # now get all movies this person worked on
+        url = f"{API_BASE_URL}/person/{person_id}/movie_credits"
+        params = {"api_key": API_KEY}
+        response = requests.get(url, params=params)
+        data = response.json()
+        crew = data.get('crew', [])
+        
+        result = []
+        for job in crew:
+            if len(result) >= 20:
+                break
+            
+            # only get movies where they were director
+            if job.get('job') == 'Director':
+                formatted = format_movie(job)
+                if formatted:
+                    result.append(formatted)
+        
+        return result
+    except:
+        return []
+
+def search_by_genre(genre_name):
+    """
+    Searches for movies by genre.
+    
+    Args:
+        genre_name: Genre name
+        
+    Returns:
+        List of genre movies formatted
+    """
+    try:
+        # look up the genre id
+        genre_id = None
+        for gid, gname in GENRE_MAP.items():
+            if gname.lower() == genre_name.lower():
+                genre_id = gid
+                break
+        
+        if not genre_id:
+            return []
+        
+        # get movies for this genre
+        url = f"{API_BASE_URL}/discover/movie"
+        params = {"api_key": API_KEY, "with_genres": genre_id, "sort_by": "popularity.desc", "page": 1}
+        response = requests.get(url, params=params)
+        data = response.json()
+        movies = data.get('results', [])
+        
+        result = []
+        for movie in movies:
+            if len(result) >= 20:
+                break
+            
+            formatted = format_movie(movie)
+            if formatted:
+                result.append(formatted)
+        
+        return result
+    except:
+        return []
