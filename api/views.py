@@ -145,16 +145,16 @@ def watch_list(request):
 
 # **** RECOMMENDED MOVIES **** #
 
-@api_view(['GET', 'UPDATE'])
+@api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def recommended_movies_list(request):
     if request.method == 'GET':
-        user_profile = request.user.userprofile
+        user_profile, created = UserProfile.objects.get_or_create(user=request.user)
         recommended = user_profile.recommended_movies.all()
         serializer = MovieSerializer(recommended, many=True)
         return Response(serializer.data)
     elif request.method == 'UPDATE':
-        user_profile = request.user.userprofile
+        user_profile, created = UserProfile.objects.get_or_create(user=request.user)
         recommended = user_profile.update_recommendations()
         serializer = MovieSerializer(recommended, many=True)
         return Response(serializer.data)

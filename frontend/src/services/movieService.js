@@ -124,11 +124,11 @@ export const movieService = {
 
   // Get recommendations
   getRecommendations: async () => {
-    const response = await fetch(`${API_URL}/movies/recommended/`, {
+    const response = await fetch(`${API_URL}/recommended_movies/`, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      throw new Error('Failed to fetch recommendations');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     return response.json();
   },

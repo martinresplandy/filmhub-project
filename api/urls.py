@@ -22,7 +22,7 @@ urlpatterns = [
     path('movies/watch_list/', watch_list, name='watch-list'),
     
     # Recommended Movies endpoints
-    path('movies/recommended/', recommended_movies_list, name='recommended-movies'),
+    path('movies/recommended/', recommended_movies_list, name='recommended_movies'),
 
     # **** RATINGS **** #
     # Ratings endpoint
@@ -38,5 +38,4 @@ urlpatterns = [
     ## search by title: /movies/?search=title&search_type=title ( put batman or somehting in the title field)
 
     ## catalog: /movies/ ( shows the catalog of movies with popular, top rated, action, comedy, drama)
-
 ]

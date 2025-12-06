@@ -17,12 +17,10 @@ export default function Recommendations() {
     } catch (err) {
       console.error("Error loading recommendations:", err);
       setError("Failed to load recommendations. Please try again later.");
-      // TODO : ERROR HANDLER
-      console.log(error);
     } finally {
       setIsLoading(false);
     }
-  }, [error]);
+  }, []);
 
   useEffect(() => {
     loadRecommendations();
@@ -32,24 +30,7 @@ export default function Recommendations() {
     console.log(`Rated movie ${movieId} with ${rating} stars`);
   }, []);
 
-  const handleSelectMovie = useCallback((movieId) => {
-    console.log(`Selected movie ${movieId}`);
-  }, []);
-
-  //   TODO : ERROR HANDLER
-  //   if (error) {
-  //     return (
-  //       <div className="movie-list-section">
-  //         <h2 className="movie-list-title">Recommended for You</h2>
-  //         <div className="error-message">
-  //           <p>{error}</p>
-  //           <button onClick={loadRecommendations}>Retry</button>
-  //         </div>
-  //       </div>
-  //     );
-  //   }
-
-  if (!isLoading && recommendations.length === 0) {
+  if (!isLoading && recommendations.length === 0 && !error) {
     return (
       <div className="movie-list-section">
         <h2 className="movie-list-title">Recommended for You</h2>
@@ -66,9 +47,8 @@ export default function Recommendations() {
       title="Recommended for You"
       movies={recommendations}
       loading={isLoading}
-      error={null}
+      error={error}
       onRate={handleRate}
-      onSelectMovie={handleSelectMovie}
       emptyMessage="Rate some movies to get recommendations!"
     />
   );
