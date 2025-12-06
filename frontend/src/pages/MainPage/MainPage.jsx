@@ -1,6 +1,4 @@
-// src/pages/MainPage/MainPage.jsx
 import { useState, useEffect, useCallback } from "react";
-// import { useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
 import SearchBar from "../../components/SearchBar/SearchBar";
 import MovieList from "../../components/MovieList/MovieList";
@@ -11,20 +9,34 @@ export default function MainPage() {
   const { auth } = useAuth();
 
   const [currentView, setCurrentView] = useState("home");
-  const [movies, setMovies] = useState([]);
+  const [catalog, setCatalog] = useState({
+    popular: [],
+    top_rated: [],
+    action: [],
+    comedy: [],
+    drama: []
+  });
   const [searchResults, setSearchResults] = useState([]);
   const [moviesLoading, setMoviesLoading] = useState(true);
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [moviesError, setMoviesError] = useState("");
-  // const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadMovies = useCallback(async () => {
     setMoviesLoading(true);
     setMoviesError("");
     try {
       const moviesData = await movieService.getMovies();
-      setMovies(Array.isArray(moviesData) ? moviesData : []);
+      if (moviesData && typeof moviesData === 'object') {
+        setCatalog({
+          popular: Array.isArray(moviesData.popular) ? moviesData.popular : [],
+          top_rated: Array.isArray(moviesData.top_rated) ? moviesData.top_rated : [],
+          action: Array.isArray(moviesData.action) ? moviesData.action : [],
+          comedy: Array.isArray(moviesData.comedy) ? moviesData.comedy : [],
+          drama: Array.isArray(moviesData.drama) ? moviesData.drama : []
+        });
+      }
     } catch (err) {
       console.error("Error loading movies:", err);
       setMoviesError("Error loading movies. Please try again.");
@@ -42,14 +54,14 @@ export default function MainPage() {
       );
     } catch (err) {
       console.error("Error loading recommendations:", err);
+      setRecommendations([]);
     } finally {
       setRecommendationsLoading(false);
     }
   }, []);
 
   const loadInitialData = useCallback(async () => {
-    loadMovies();
-    loadRecommendations();
+    await Promise.all([loadMovies(), loadRecommendations()]);
   }, [loadMovies, loadRecommendations]);
 
   useEffect(() => {
@@ -57,83 +69,187 @@ export default function MainPage() {
   }, [loadInitialData]);
 
   const handleSearch = async (query) => {
-    // setSearchQuery(query);
-    if (!query) {
+    setSearchQuery(query);
+    if (!query || query.trim() === "") {
       setSearchResults([]);
       setCurrentView("home");
       return;
     }
+
     setMoviesLoading(true);
     setMoviesError("");
+    setCurrentView("search");
+    
     try {
-      const results = await movieService.searchMovies();
+      const results = await movieService.searchMovies(query, 'title');
       setSearchResults(Array.isArray(results) ? results : []);
-      setCurrentView("search");
     } catch (err) {
-      setMoviesError("Error searching movies.");
+      console.error("Error searching movies:", err);
+      setMoviesError("Error searching movies. Please try again.");
+      setSearchResults([]);
     } finally {
       setMoviesLoading(false);
     }
   };
 
-  const handleRate = async (movieId, rating) => {
+  const handleRate = async (movieId, rating, comment = '') => {
     try {
-      await movieService.rateMovie(movieId, rating);
-      loadMovies();
-      loadRecommendations();
+      await movieService.rateMovie(movieId, rating, comment);
+      await Promise.all([loadMovies(), loadRecommendations()]);
     } catch (err) {
       console.error("Error rating movie:", err);
+      alert(err.message || "Error rating movie. Please try again.");
     }
+  };
+
+  const getAllMovies = () => {
+    return [
+      ...catalog.popular,
+      ...catalog.top_rated,
+      ...catalog.action,
+      ...catalog.comedy,
+      ...catalog.drama
+    ];
   };
 
   return (
     <div className="main-page">
-      <>
-        <div className="main-content">
-          <header className="main-header">
-            <h1 className="main-welcome">
-              {/* USE AUTH.USER */}
-              Welcome back, {auth.user?.username || "User"}!
-            </h1>
-            <p className="main-subtitle">
-              Discover your next favorite movie – rate, explore, and get smart
-              recommendations!
-            </p>
-            {(currentView === "home" || currentView === "search") && (
-              <SearchBar onSearch={handleSearch} />
-            )}
-          </header>
+      <div className="main-content">
+        <header className="main-header">
+          <h1 className="main-welcome">
+            Welcome back, {auth.user?.username || "User"}!
+          </h1>
+          <p className="main-subtitle">
+            Discover your next favorite movie – rate, explore, and get smart
+            recommendations!
+          </p>
+          <SearchBar onSearch={handleSearch} />
+        </header>
 
-          <main className="main-movies">
+        <main className="main-movies">
+          {currentView === "search" ? (
+            // Search Results View
             <>
-              {searchResults.length > 0 && (
+              {moviesLoading ? (
+                <p>Loading search results...</p>
+              ) : searchResults.length > 0 ? (
                 <MovieList
-                  title="Recommended for You"
-                  movies={searchResults.slice(0, 5)}
+                  title={`Search Results for "${searchQuery}"`}
+                  movies={searchResults}
                   loading={false}
                   onRate={handleRate}
                 />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <h2>No results found for "{searchQuery}"</h2>
+                  <p>Try a different search term</p>
+                </div>
               )}
+            </>
+          ) : (
+            // Home View - Catalog
+            <>
+              {moviesError && (
+                <div style={{ 
+                  color: 'red', 
+                  textAlign: 'center', 
+                  padding: '20px',
+                  backgroundColor: '#fee',
+                  borderRadius: '8px',
+                  margin: '0 0 20px 0'
+                }}>
+                  {moviesError}
+                </div>
+              )}
+
+              {/* Recommendations Section */}
               {!recommendationsLoading && recommendations.length > 0 && (
                 <MovieList
                   title="Recommended for You"
-                  movies={recommendations.slice(0, 5)}
+                  movies={recommendations}
                   loading={false}
                   onRate={handleRate}
                 />
               )}
 
-              <MovieList
-                title="All Movies"
-                movies={movies}
-                loading={moviesLoading}
-                error={moviesError}
-                onRate={handleRate}
-              />
+              {/* Popular Movies */}
+              {catalog.popular.length > 0 && (
+                <MovieList
+                  title="Popular Movies"
+                  movies={catalog.popular}
+                  loading={moviesLoading}
+                  onRate={handleRate}
+                />
+              )}
+
+              {/* Top Rated Movies */}
+              {catalog.top_rated.length > 0 && (
+                <MovieList
+                  title="Top Rated"
+                  movies={catalog.top_rated}
+                  loading={moviesLoading}
+                  onRate={handleRate}
+                />
+              )}
+
+              {/* Action Movies */}
+              {catalog.action.length > 0 && (
+                <MovieList
+                  title="Action Movies"
+                  movies={catalog.action}
+                  loading={moviesLoading}
+                  onRate={handleRate}
+                />
+              )}
+
+              {/* Comedy Movies */}
+              {catalog.comedy.length > 0 && (
+                <MovieList
+                  title="Comedy Movies"
+                  movies={catalog.comedy}
+                  loading={moviesLoading}
+                  onRate={handleRate}
+                />
+              )}
+
+              {/* Drama Movies */}
+              {catalog.drama.length > 0 && (
+                <MovieList
+                  title="Drama Movies"
+                  movies={catalog.drama}
+                  loading={moviesLoading}
+                  onRate={handleRate}
+                />
+              )}
+
+              {/* All Movies (combined) */}
+              {!moviesLoading && getAllMovies().length > 0 && (
+                <MovieList
+                  title="All Movies"
+                  movies={getAllMovies()}
+                  loading={false}
+                  onRate={handleRate}
+                />
+              )}
+
+              {/* Loading State */}
+              {moviesLoading && (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p>Loading movies...</p>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {!moviesLoading && getAllMovies().length === 0 && !moviesError && (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <h2>No movies available</h2>
+                  <p>Check your connection and try again</p>
+                </div>
+              )}
             </>
-          </main>
-        </div>
-      </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
