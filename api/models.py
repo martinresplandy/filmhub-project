@@ -17,6 +17,7 @@ class Movie(models.Model):
     title = models.CharField(max_length=100)
     poster_url = models.URLField(max_length=255, blank=True)
     description = models.TextField(blank=True)
+    director = models.CharField(max_length=100, blank=True)
     genre = models.CharField(max_length=255)
     keyword = models.CharField(max_length=255)
     duration = models.IntegerField(help_text="Duration in minutes")

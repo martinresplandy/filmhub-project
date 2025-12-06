@@ -268,8 +268,9 @@ def create_movie_from_external_id(movie_id):
                  raise ValueError("Missing essential movie data from API.")
             movie.title = data.get('title')
             movie.poster_url = f"https://image.tmdb.org/t/p/w500{data.get('poster_path')}" if data.get('poster_path') else ""
-            movie.description = data.get('overview', '') # Use overview for description
-            movie.duration = data.get('runtime', 0)     # Use runtime for duration (minutes)
+            movie.description = data.get('overview', '') 
+            movie.director = data.get('director','Unknown')
+            movie.duration = data.get('runtime', 0)
             
             # GENRES
             genre_names_list = []

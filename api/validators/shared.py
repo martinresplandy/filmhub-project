@@ -55,8 +55,8 @@ def validate_rating_score(score):
     if score < 1 or score > 5:
         raise ValidationError('Rating score must be between 1 and 5.')
     
-def validate_unique_movie(title, description, genre, keyword, duration, year, instance=None):
-    qs = Movie.objects.filter(title=title, description=description, genre=genre, keyword=keyword, duration=duration, year=year)
+def validate_unique_movie(title, description, director, genre, keyword, duration, year, instance=None):
+    qs = Movie.objects.filter(title=title, description=description, director=director, genre=genre, keyword=keyword, duration=duration, year=year)
     if instance:
         qs = qs.exclude(pk=instance.pk)
     if qs.exists():

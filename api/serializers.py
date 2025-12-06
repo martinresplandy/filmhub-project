@@ -54,6 +54,7 @@ class MovieSerializer(serializers.ModelSerializer):
         title = data.get('title', getattr(self.instance, 'title', None))
         poster_url = data.get('poster_url', getattr(self.instance, 'poster_url', None))
         description = data.get('description', getattr(self.instance, 'description', None))
+        director = data.get('director', getattr(self.instance, 'director', None))
         genre = data.get('genre', getattr(self.instance, 'genre', None))
         keyword = data.get('keyword', getattr(self.instance, 'keyword', None))
         duration = data.get('duration', getattr(self.instance, 'duration', None))
@@ -64,6 +65,7 @@ class MovieSerializer(serializers.ModelSerializer):
             title=title,
             poster_url=poster_url,
             description=description,
+            director=director,
             genre=genre,
             keyword=keyword,
             duration=duration,
