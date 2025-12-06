@@ -494,6 +494,8 @@ def format_movie(movie):
     except:
         rating_float = 0.0
     
+    description = movie.get('overview', '')
+
     return {
         "external_id": movie_id,
         "title": title,
@@ -501,6 +503,7 @@ def format_movie(movie):
         "genre": genre_string,
         "year": year,
         "average_rating": rating_float,
+        "description": description,
     }
 
 def fetch_movies(url, params, limit=20):
