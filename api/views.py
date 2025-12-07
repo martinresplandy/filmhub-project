@@ -82,11 +82,21 @@ def ratings_view(request):
         if not movie_external_id:
             return Response({'error': 'Movie ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create movie if it doesn't exist
-        movie = get_or_create_movie_from_external_id(movie_external_id)
-        
-        if not movie:
-            return Response({'error': 'Could not find or create movie.'}, status=status.HTTP_400_BAD_REQUEST)
+        # Try to get existing movie first
+        try:
+            movie = Movie.objects.get(external_id=movie_external_id)
+        except Movie.DoesNotExist:
+            # Create movie if it doesn't exist
+            result = get_or_create_movie_from_external_id(movie_external_id)
+            
+            # Check if result is a tuple (movie, created) or just movie
+            if isinstance(result, tuple):
+                movie = result[0]
+            else:
+                movie = result
+            
+            if not movie:
+                return Response({'error': 'Could not find or create movie.'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Check if rating already exists
         existing_rating = Rating.objects.filter(
