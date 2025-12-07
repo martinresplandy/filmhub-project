@@ -1,10 +1,10 @@
-.PHONY: all install startDB migrate super_migrate run test clear wait_for_db
+.PHONY: all install startDB migrate super_migrate run test clear wait_for_db migrate_local
 
 # **** BACKEND TARGETS **** #
 
-backend : clear install startDB migrate run 
+backend_local : clear install startDB migrate run
 
-super_backend : clear install startDB super_migrate run 
+backend_CI : clear install startDB migrate test
 
 install:
 	@echo "NOTE : You first need to set up a virtual environment."
@@ -40,19 +40,17 @@ startDB: install
 	docker compose up -d postgres
 	@echo "PostgreSQL database started."
 
-migrate: install wait_for_db
-	@echo "Running database migrations..."
+migrate_local: install wait_for_db
+	@echo "Running database migrations for local..."
 	python manage.py makemigrations
 	python manage.py migrate
 	@echo "Database migrations completed."
 
-super_migrate: install wait_for_db
-	@echo "Running database migrations..."
+migrate_CI: install
+	@echo "Running database migrations for CI..."
 	python manage.py makemigrations
 	python manage.py migrate
-	@echo "Initializing database with super user..."
-	python manage.py createsuperuser
-	@echo "Database migrations completed."
+	@echo "Database migrations for CI completed."
 
 run: install startDB wait_for_db
 	@echo "Starting the development server..."
