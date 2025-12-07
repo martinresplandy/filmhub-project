@@ -19,6 +19,7 @@ from .utils import (
     get_all_ratings_for_user,
     add_rating,
     update_rating,
+    delete_rating,
     get_recommended_movies_for_user,
     update_recommendations,
     get_watched_movies_for_user,
@@ -37,7 +38,6 @@ from .utils import (
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
-    # CHeck if the parameters are valid
     serializer = UserSerializer(data=request.data)
     registered_user, response_status = register_user(serializer)
     if response_status == Status.SUCCESS:
@@ -79,28 +79,35 @@ def ratings_view(request):
         return Response({'error': 'Could not fetch ratings.'}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'POST':
-        serializer = RatingSerializer(data=request.data)
-        rating, response_status = add_rating(serializer)
+        rating, response_status = add_rating(request.user, request.data.get('external_movie_id'), request.data.get('score'), request.data.get('comment'))
         match response_status:
             case Status.SUCCESS:
                 serializer = RatingSerializer(rating)
-                return Response(rating, status=status.HTTP_201_CREATED)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             case Status.ALREADY_EXISTS:
                 return Response({'error': 'Rating for this movie already exists. Use PATCH to update.'}, status=status.HTTP_400_BAD_REQUEST)
             case Status.FAILURE:
-                return Response({'error': 'Could not create rating. Check the data provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Could not create rating. The data provided is wrong.'}, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'PATCH':
-        serializer = RatingSerializer(data=request.data)
-        rating, response_status = update_rating(serializer)
+        rating, response_status = update_rating(request.user, request.data.get('rating_id'), request.data.get('new_score'), request.data.get('new_comment'))
         match response_status:
             case Status.SUCCESS:
                 serializer = RatingSerializer(rating)
-                return Response(serializer, status=status.HTTP_200_OK)
+                return Response(serializer.data, status=status.HTTP_200_OK)
             case Status.NOT_FOUND:
                 return Response({'error': 'Rating not found. Cannot update non-existing rating.'}, status=status.HTTP_404_NOT_FOUND)
             case Status.FAILURE:
                 return Response({'error': 'Could not update rating. Check the data provided.'}, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'DELETE':
+        rating, response_status = delete_rating(request.user, request.data.get('rating_id'))
+        match response_status:
+            case Status.SUCCESS:
+                return Response({'message': f'Rating for movie "{rating.movie.title}" deleted successfully.'}, status=status.HTTP_200_OK)
+            case Status.NOT_FOUND:
+                return Response({'error': 'Rating not found. Cannot delete non-existing rating.'}, status=status.HTTP_404_NOT_FOUND)
+            case Status.FAILURE:
+                return Response({'error': 'Could not delete rating. Check the data provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
 # **** RECOMMENDED MOVIES **** #
 
@@ -122,7 +129,7 @@ def recommended_movies_list_view(request):
         
 # **** WATCHED MOVIES **** #
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def watched_movies_view(request):
     if request.method == 'GET':
@@ -152,12 +159,11 @@ def watched_movies_view(request):
 
 # **** WATCH LIST **** #
 
-@api_view(['GET', 'POST'])
+@api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def watch_list_view(request):
     if request.method == 'GET':
-        user_profile = request.user.userprofile
-        watch_list_movies, response_status = get_watch_list_for_user(user_profile)
+        watch_list_movies, response_status = get_watch_list_for_user(request.user.userprofile)
         if response_status == Status.SUCCESS:
             serializer = MovieSerializer(watch_list_movies, many=True)
             return Response(serializer.data)
@@ -202,8 +208,7 @@ def movie_by_id_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def movies_catalog_view(request):
-    search = request.query_params.get('search', '').strip().lower()
-    catalog, response_status = movies_catalog(search)
+    catalog, response_status = movies_catalog()
     if response_status == Status.SUCCESS:
         return Response(catalog)
     return Response({'error': 'Could not fetch movie catalog.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -214,8 +219,8 @@ def movies_catalog_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def movies_search_view(request):
-    search = request.query_params.get('search', '').strip().lower()
-    search_type = request.query_params.get('search_type', 'title').strip().lower()
+    search = request.data.get('search', '')
+    search_type = request.data.get('search_type', 'title')
     movies_searched, response_status = movies_search(search, search_type)
     if response_status == Status.SUCCESS:
         serializer = MovieSerializer(movies_searched, many=True)

@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import recommended_movies_list_view, register_view, login_view, ratings_view, watch_list_view, movie_by_id_view, movies_catalog_view, movies_search_view
+from .views import recommended_movies_list_view, register_view, login_view, ratings_view, watch_list_view, movie_by_id_view, movies_catalog_view, movies_search_view, watched_movies_view
 
 # router = DefaultRouter() # Uncomment to enable router
 # router.register(r'movies', MovieViewSet) # Example of registering a viewset
@@ -19,7 +19,10 @@ urlpatterns = [
     path('movies/', movies_catalog_view, name='movies-catalog'),
 
     # Movies search
-    path('movies/search/', movies_search_view, name='movies-search'),  # Uncomment if a separate search view is created
+    path('movies/search/', movies_search_view, name='movies-search'),
+
+    # Watched movie endpoints
+    path('movies/watched/', watched_movies_view, name='watched-movies'),
 
     # WatchList endpoints
     path('movies/watch_list/', watch_list_view, name='watch-list'),

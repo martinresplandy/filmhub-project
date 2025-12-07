@@ -46,8 +46,11 @@ class MovieSerializer(serializers.ModelSerializer):
         fields = ['external_id', 'title', 'poster_url', 'description', 'director', 'genre', 'keyword', 'year', 'duration', 'average_rating']
 
     def get_average_rating(self, obj):
-        avg = obj.rating_set.aggregate(Avg('score'))['score__avg']
-        return round(avg, 2) if avg is not None else None
+        # If the Movie object doesn't exists, we don't give any ratings to it
+        if obj.pk: 
+            avg = obj.rating_set.aggregate(Avg('score'))['score__avg']
+            return round(avg, 2) if avg is not None else None
+        return getattr(obj, 'average_rating', None)
 
     def validate(self, data):
         # Build lookup values: handles missing data during updates

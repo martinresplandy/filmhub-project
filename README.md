@@ -43,7 +43,11 @@ _otherwise_
 
 ## Potential problem with the Docker compose
 
-If you can run the docker-compose.yml you will have to give a full access to docker with theses commands :
+If you can't run the docker-compose.yml and get this type of error :
+
+> django.db.utils.OperationalError: connection to server at "localhost" (127.0.0.1), port 5432 failed: server closed the connection unexpectedly
+
+You will have to give a full access to docker with theses commands :
 
 > sudo groupadd docker
 
@@ -54,3 +58,20 @@ _creates the user group called "docker"_
 _gives the admin access_
 
 Now you just have to restart your machine and run the Makefile, enjoy !!
+
+## Description of the API REST routes
+
+All the parameters must be give in the Body of the request.
+
+| ROUTES        | GET | POST | PATCH | DELETE |
+| -------- | ------- | ------- | ------- | ------- |
+| /register/            | X | {"username":string, "email":string, "password":string} | X | X |
+| /login/               | X | {"username":string, "password":string} | X | X |
+| /movie/               | {"external_id":number} | X | X | X |
+| /movies/              | No Body | X | X | X |
+| /movies/search/       | {"search":string, "search_type":string} | X | X | X |
+| /movies/watched/      | No Body | {"external_id":number} | X | {"external_id":number} |
+| /movies/watch_list/   | No Body | {"external_id":number} | X | {"external_id":number} |
+| /movies/recommended/  | No Body | X | No Body | X |
+| /ratings/             | No Body | {"external_movie_id":string, "score":number[0:5], "comment":string} | {"rating_id":number, "new_score":number, "new_comment":string} | {"rating_id":number} |
+

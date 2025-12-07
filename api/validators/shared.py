@@ -52,7 +52,7 @@ def validate_unique_username(username):
     
 
 def validate_rating_score(score):
-    if score < 1 or score > 5:
+    if score < 0 or score > 5:
         raise ValidationError('Rating score must be between 1 and 5.')
     
 def validate_unique_movie(title, description, director, genre, keyword, duration, year, instance=None):

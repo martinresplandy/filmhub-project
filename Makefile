@@ -12,22 +12,26 @@ install:
 	pip install -r ./api/requirements.txt
 	@echo "Build completed."
 
-wait_for_db: install
-	@echo "Waiting for PostgreSQL to be ready..."
-    # Netcat (nc) checks if the host (localhost) and port (5432) are open.
+wait_for_db: startDB
+	@echo "Waiting for PostgreSQL service to be HEALTHY..."
 	SUCCESS_FLAG=1; \
 	for i in $$(seq 1 10); do \
-		nc -z -w1 localhost 5432; \
-		if [ $$? -eq 0 ]; then \
-			echo "PostgreSQL est disponible après $$i tentatives."; \
+		STATUS=$$(docker compose ps -q postgres | xargs docker inspect --format '{{.State.Health.Status}}'); \
+		if [ "$$STATUS" = "healthy" ]; then \
+			echo "PostgreSQL is ready and healthy after $$i checks."; \
 			SUCCESS_FLAG=0; \
 			break; \
 		fi; \
-		echo "Waiting for PostgreSQL ($$i/10)..."; \
+		if [ "$$STATUS" = "starting" ] || [ "$$STATUS" = "unhealthy" ]; then \
+			echo "PostgreSQL status: $$STATUS ($$i/10)..."; \
+		else \
+			echo "PostgreSQL container status: $$STATUS. Aborting."; \
+			exit 1; \
+		fi; \
 		sleep 5; \
-	done
+	done; \
 	if [ "$$SUCCESS_FLAG" -ne 0 ]; then \
-		echo "PostgreSQL failed to start after 50 seconds. Exiting."; \
+		echo "PostgreSQL failed to become healthy after 50 seconds. Exiting."; \
 		exit 1; \
 	fi
 
