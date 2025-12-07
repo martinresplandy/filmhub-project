@@ -2,7 +2,7 @@
 
 # **** BACKEND TARGETS **** #
 
-backend_local : clear install startDB migrate run
+backend_local : clear install startDB migrate_local run
 
 backend_CI : clear install startDB migrate test
 
