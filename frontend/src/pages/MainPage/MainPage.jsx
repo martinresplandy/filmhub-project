@@ -18,8 +18,6 @@ export default function MainPage() {
   });
   const [searchResults, setSearchResults] = useState([]);
   const [moviesLoading, setMoviesLoading] = useState(true);
-  const [recommendations, setRecommendations] = useState([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [ratings, setRatings] = useState([]);
   const [moviesError, setMoviesError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,24 +54,9 @@ export default function MainPage() {
     }
   }, []);
 
-  const loadRecommendations = useCallback(async () => {
-    setRecommendationsLoading(true);
-    try {
-      const recommendationsData = await movieService.getRecommendations();
-      setRecommendations(
-        Array.isArray(recommendationsData) ? recommendationsData : []
-      );
-    } catch (err) {
-      console.error("Error loading recommendations:", err);
-      setRecommendations([]);
-    } finally {
-      setRecommendationsLoading(false);
-    }
-  }, []);
-
   const loadInitialData = useCallback(async () => {
-    await Promise.all([loadMovies(), loadRecommendations(), loadRatings()]);
-  }, [loadMovies, loadRecommendations, loadRatings]);
+    await Promise.all([loadMovies(), loadRatings()]);
+  }, [loadMovies, loadRatings]);
 
   useEffect(() => {
     loadInitialData();
@@ -90,7 +73,7 @@ export default function MainPage() {
     setMoviesLoading(true);
     setMoviesError("");
     setCurrentView("search");
-    
+
     try {
       const results = await movieService.searchMovies(query, 'title');
       setSearchResults(Array.isArray(results) ? results : []);
@@ -106,7 +89,7 @@ export default function MainPage() {
   const handleRate = async (movieId, rating, comment = '') => {
     try {
       await movieService.rateOrUpdateMovie(movieId, rating, comment);
-      await Promise.all([loadMovies(), loadRecommendations(), loadRatings()]);
+      await Promise.all([loadMovies(), loadRatings()]);
     } catch (err) {
       console.error("Error rating movie:", err);
       alert(err.message || "Error rating movie. Please try again.");
@@ -131,8 +114,7 @@ export default function MainPage() {
             Welcome back, {auth.user?.username || "User"}!
           </h1>
           <p className="main-subtitle">
-            Discover your next favorite movie — rate, explore, and get smart
-            recommendations!
+            Discover your next favorite movie — rate, explore!
           </p>
           <SearchBar onSearch={handleSearch} />
         </header>
@@ -152,7 +134,7 @@ export default function MainPage() {
                   ratings={ratings}
                 />
               ) : (
-                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div style={{ textAlign: "center", padding: "40px 20px" }}>
                   <h2>No results found for "{searchQuery}"</h2>
                   <p>Try a different search term</p>
                 </div>
@@ -162,29 +144,20 @@ export default function MainPage() {
             // Home View - Catalog
             <>
               {moviesError && (
-                <div style={{ 
-                  color: 'red', 
-                  textAlign: 'center', 
-                  padding: '20px',
-                  backgroundColor: '#fee',
-                  borderRadius: '8px',
-                  margin: '0 0 20px 0'
-                }}>
+                <div
+                  style={{
+                    color: "red",
+                    textAlign: "center",
+                    padding: "20px",
+                    backgroundColor: "#fee",
+                    borderRadius: "8px",
+                    margin: "0 0 20px 0"
+                  }}
+                >
                   {moviesError}
                 </div>
               )}
-
-              {/* Recommendations Section */}
-              {!recommendationsLoading && recommendations.length > 0 && (
-                <MovieList
-                  title="Recommended for You"
-                  movies={recommendations}
-                  loading={false}
-                  onRate={handleRate}
-                  ratings={ratings}
-                />
-              )}
-
+              
               {/* Popular Movies */}
               {catalog.popular.length > 0 && (
                 <MovieList
@@ -253,14 +226,14 @@ export default function MainPage() {
 
               {/* Loading State */}
               {moviesLoading && (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ textAlign: "center", padding: "40px" }}>
                   <p>Loading movies...</p>
                 </div>
               )}
 
               {/* Empty State */}
               {!moviesLoading && getAllMovies().length === 0 && !moviesError && (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div style={{ textAlign: "center", padding: "40px" }}>
                   <h2>No movies available</h2>
                   <p>Check your connection and try again</p>
                 </div>
