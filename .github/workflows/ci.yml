@@ -62,7 +62,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 5432:5432
+          #- 5432:5432
     
     env:
       DB_NAME: filmhub_db
@@ -93,4 +93,4 @@ jobs:
       - name: Run Django tests
         working-directory: .
         run: |
-          make test || echo "backend tests failed (ignored)"
+          python manage.py test api
