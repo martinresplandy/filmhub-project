@@ -1,8 +1,12 @@
 from rest_framework import serializers
 from .models import Movie, Rating
 from django.contrib.auth.models import User
-from .validators.shared import (validate_email, validate_email_unique, validate_password_strength, validate_unique_movie, validate_username)
+from .validators.shared import (validate_email, validate_email_unique, validate_password_strength, validate_unique_movie, validate_username, validate_unique_username)
 from django.db.models import Avg
+import requests
+
+API_BASE_URL = "https://api.themoviedb.org/3"
+API_KEY = "ed6c1919d48f4231cb8f449cfe728211"
 
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -12,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'password']
         extra_kwargs = {
             'username': {
-                'validators': [validate_username],
+                'validators': [validate_username, validate_unique_username],
                 'required': True,
                 'allow_blank': False
             },
@@ -43,14 +47,30 @@ class MovieSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     class Meta:
         model = Movie
-        fields = ['external_id', 'title', 'poster_url', 'description', 'director', 'genre', 'keyword', 'year', 'duration', 'average_rating']
+        fields = ['external_id', 'title', 'poster_url', 'description', 'genre', 'year', 'average_rating']
 
     def get_average_rating(self, obj):
-        # If the Movie object doesn't exists, we don't give any ratings to it
-        if obj.pk: 
-            avg = obj.rating_set.aggregate(Avg('score'))['score__avg']
-            return round(avg, 2) if avg is not None else None
-        return getattr(obj, 'average_rating', None)
+        avg = obj.rating_set.aggregate(Avg('score'))['score__avg']
+        
+        if avg is not None:
+            return round(avg, 2)
+        
+        try:
+            api_url = f"{API_BASE_URL}/movie/{obj.external_id}"
+            headers = {"accept": "application/json"}
+            params = {"api_key": API_KEY}
+            
+            response = requests.get(api_url, headers=headers, params=params, timeout=5)
+            
+            if response.ok:
+                data = response.json()
+                tmdb_rating = data.get('vote_average', 0)
+                if tmdb_rating:
+                    return round(float(tmdb_rating), 2)
+        except Exception as e:
+            pass
+        
+        return None
 
     def validate(self, data):
         # Build lookup values: handles missing data during updates

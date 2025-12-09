@@ -11,26 +11,42 @@ export default function Recommendations() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const loadRecommendations = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-
     try {
       const data = await movieService.getRecommendations();
       setRecommendations(Array.isArray(data) ? data : []);
-      
-      const ratingsData = await movieService.getRatings();
-      setRatings(Array.isArray(ratingsData) ? ratingsData : []);
     } catch (err) {
       console.error("Error loading recommendations:", err);
       setError("Failed to load recommendations. Please try again later.");
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
+  const loadRatings = useCallback(async () => {
+    try {
+      const ratingsData = await movieService.getRatings();
+      setRatings(Array.isArray(ratingsData) ? ratingsData : []);
+    } catch (err) {
+      console.error("Error loading ratings:", err);
+      setRatings([]);
+    }
+  }, []);
+
+  const loadInitialData = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      await Promise.all([loadRecommendations(), loadRatings()]);
+    } catch (err) {
+      console.error("Error loading initial data:", err);
+      setError("Failed to load data. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadRecommendations, loadRatings]);
+
   useEffect(() => {
-    loadRecommendations();
-  }, [loadRecommendations]);
+    loadInitialData();
+  }, [loadInitialData]);
 
   const handleRate = async (movieId, rating) => {
     try {
@@ -41,7 +57,7 @@ export default function Recommendations() {
       
       setSuccessMessage("Rating saved successfully!");
       
-      await loadRecommendations();
+      await Promise.all([loadRecommendations(), loadRatings()]);
       
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {

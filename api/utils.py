@@ -22,10 +22,6 @@ GENRE_POINTS = 1
 KEYWORD_MAP = {}
 KEYWORD_POINTS = 3
 
-def print_maps():
-    print("GENRE_MAP:", GENRE_MAP)
-    print("KEYWORD_MAP:", KEYWORD_MAP)
-
 # **** STATUS **** #
 
 class Status(Enum):

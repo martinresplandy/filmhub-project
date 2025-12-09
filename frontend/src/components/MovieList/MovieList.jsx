@@ -33,12 +33,16 @@ export default function MovieList({
     );
   }
 
-  if (!movies || movies.length === 0) {
+  const uniqueMovies = movies ? 
+    Array.from(new Map(movies.map(m => [m.external_id, m])).values()) : 
+    [];
+
+  if (!uniqueMovies || uniqueMovies.length === 0) {
     return (
       <div className="movie-list-section">
         {title && <h2 className="movie-list-title">{title}</h2>}
         <div className="movie-list-empty">
-          <span className="empty-icon"></span>
+          <span className="empty-icon">🎬</span>
           <p>{emptyMessage}</p>
         </div>
       </div>
@@ -49,9 +53,9 @@ export default function MovieList({
     <div className="movie-list-section">
       {title && <h2 className="movie-list-title">{title}</h2>}
       <div className="movie-list-grid">
-        {movies.map((movie) => (
+        {uniqueMovies.map((movie) => (
           <MovieCard 
-            key={movie.id} 
+            key={movie.external_id} 
             movie={movie} 
             onRate={onRate}
             userRatings={ratings}
