@@ -34,19 +34,19 @@ describe('MovieCard', () => {
     expect(screen.getByText('2023')).toBeInTheDocument();
     expect(screen.getByText('Action')).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute('src', 'http://example.com/poster.jpg');
-    expect(screen.getByText('4.5')).toBeInTheDocument(); // Average rating
+    expect(screen.getByText('4.5')).toBeInTheDocument();
   });
 
   it('navigates to movie details on click', () => {
     renderComponent();
-    fireEvent.click(screen.getByRole('img').parentElement); // Click the poster container
+    fireEvent.click(screen.getByRole('img').parentElement);
     expect(mockNavigate).toHaveBeenCalledWith('/movie/123');
   });
 
   it('displays user rating if present', () => {
     const userRatings = [{ movie: 123, score: 8 }];
     renderComponent({ userRatings });
-    expect(screen.getByText('8')).toBeInTheDocument(); // User rating
+    expect(screen.getByText('8')).toBeInTheDocument();
     expect(screen.getByText('Your rating:')).toBeInTheDocument();
   });
 
