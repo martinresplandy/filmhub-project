@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Movie, Rating
 from django.contrib.auth.models import User
-from .validators.shared import (validate_email, validate_email_unique, validate_password_strength, validate_unique_movie, validate_username)
+from .validators.shared import (validate_email, validate_email_unique, validate_password_strength, validate_unique_movie, validate_username, validate_unique_username)
 from django.db.models import Avg
 import requests
 
@@ -16,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'password']
         extra_kwargs = {
             'username': {
-                'validators': [validate_username],
+                'validators': [validate_username, validate_unique_username],
                 'required': True,
                 'allow_blank': False
             },
