@@ -141,7 +141,6 @@ def ratings_view(request):
                 {'error': f'Failed to create rating: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        update_recommendations(request.user.userprofile)
         serializer = RatingSerializer(rating)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
@@ -188,7 +187,6 @@ def ratings_view(request):
         rating.score = score
         rating.comment = comment
         rating.save()
-        update_recommendations(request.user.userprofile)
         serializer = RatingSerializer(rating)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
