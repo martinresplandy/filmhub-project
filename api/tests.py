@@ -307,3 +307,241 @@ class RatingsViewTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn('error', response.data)
         
+
+
+@override_settings(
+    PASSWORD_HASHERS=TEST_PASSWORD_HASHERS,
+    DEBUG=False,
+)
+class RecommendedMoviesViewTestCase(APITestCase):
+    """Tests for the recommended movies endpoint"""
+    
+    def setUp(self):
+        """Setup that runs before each test"""
+        # Create user
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!',
+            email='test@example.com'
+        )
+        
+        # Create UserProfile
+        self.userprofile = UserProfile.objects.create(user=self.user)
+        
+        # Get token
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + self.token.key)
+        
+        # URLs
+        self.recommendations_url = reverse('recommended-movies')
+        
+        # Create test movies
+        self.movie1 = Movie.objects.create(
+            external_id=1111111,
+            title='Inception',
+            poster_url='https://example.com/inception.jpg',
+            description='A thief who steals corporate secrets',
+            director='Christopher Nolan',
+            genre='Sci-Fi',
+            keyword='dream',
+            year=2010,
+            duration=148
+        )
+        
+        self.movie2 = Movie.objects.create(
+            external_id=2222222,
+            title='Interstellar',
+            poster_url='https://example.com/interstellar.jpg',
+            description='A team of explorers travel through a wormhole',
+            director='Christopher Nolan',
+            genre='Sci-Fi',
+            keyword='space',
+            year=2014,
+            duration=169
+        )
+        
+        self.movie3 = Movie.objects.create(
+            external_id=3333333,
+            title='The Dark Knight',
+            poster_url='https://example.com/dark-knight.jpg',
+            description='Batman faces the Joker',
+            director='Christopher Nolan',
+            genre='Action',
+            keyword='superhero',
+            year=2008,
+            duration=152
+        )
+        
+        self.movie4 = Movie.objects.create(
+            external_id=4444444,
+            title='The Matrix',
+            poster_url='https://example.com/matrix.jpg',
+            description='A computer hacker learns about reality',
+            director='Wachowski Sisters',
+            genre='Sci-Fi',
+            keyword='simulation',
+            year=1999,
+            duration=136
+        )
+    
+    def test_get_recommended_movies_success(self):
+        """Test 1: Successfully get recommended movies"""
+        # Add recommended movies to UserProfile
+        self.userprofile.recommended_movies.add(self.movie1, self.movie2)
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check status code
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Check that it returned the recommended movies
+        self.assertEqual(len(response.data), 2)
+        
+        # Check that the correct movies were returned
+        movie_ids = [movie['external_id'] for movie in response.data]
+        self.assertIn(self.movie1.external_id, movie_ids)
+        self.assertIn(self.movie2.external_id, movie_ids)
+    
+    def test_get_recommended_movies_empty_list(self):
+        """Test 2: Get recommendations when there are none"""
+        response = self.client.get(self.recommendations_url)
+        
+        # Check status code
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Check that list is empty
+        self.assertEqual(len(response.data), 0)
+    
+    def test_refresh_recommendations_success(self):
+        """Test 5: Successfully update/refresh recommendations"""
+        # Create some ratings to generate recommendations
+        Rating.objects.create(user=self.user, movie=self.movie1, score=9)
+        Rating.objects.create(user=self.user, movie=self.movie2, score=8)
+        
+        response = self.client.patch(self.recommendations_url)
+        
+        # Check status code
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Check that it returned movies (may vary based on recommendation algorithm)
+        self.assertIsInstance(response.data, list)
+    
+    def test_recommended_movies_isolation_between_users(self):
+        """Test 9: Verify that recommendations are isolated per user"""
+        # Create second user
+        user2 = User.objects.create_user(
+            username='testuser2',
+            password='testpass123!',
+            email='test2@example.com'
+        )
+        userprofile2 = UserProfile.objects.create(user=user2)
+        
+        # Add different recommendations for each user
+        self.userprofile.recommended_movies.add(self.movie1)
+        userprofile2.recommended_movies.add(self.movie2, self.movie3)
+        
+        # Get recommendations for user1 (already authenticated)
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that it only has user1's recommendations
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['external_id'], self.movie1.external_id)
+    
+    def test_recommended_movies_include_movie_details(self):
+        """Test 10: Verify that recommendations include all movie details"""
+        self.userprofile.recommended_movies.add(self.movie1)
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that it includes the fields that the serializer returns
+        movie_data = response.data[0]
+        self.assertIn('external_id', movie_data)
+        self.assertIn('title', movie_data)
+        self.assertIn('genre', movie_data)
+        self.assertIn('year', movie_data)
+        self.assertIn('poster_url', movie_data)
+        self.assertIn('description', movie_data)
+        
+        # Check correct values
+        self.assertEqual(movie_data['title'], 'Inception')
+        self.assertEqual(movie_data['external_id'], self.movie1.external_id)
+        self.assertEqual(movie_data['genre'], 'Sci-Fi')
+        self.assertEqual(movie_data['year'], 2010)
+    
+    def test_recommended_movies_multiple_genres(self):
+        """Test 11: Recommendations can include multiple genres"""
+        # Add movies from different genres
+        self.userprofile.recommended_movies.add(
+            self.movie1,  # Sci-Fi
+            self.movie3   # Action
+        )
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that both were returned
+        self.assertEqual(len(response.data), 2)
+        
+        genres = [movie['genre'] for movie in response.data]
+        self.assertIn('Sci-Fi', genres)
+        self.assertIn('Action', genres)
+    
+    def test_add_multiple_recommended_movies(self):
+        """Test 12: Add multiple movies to recommendations"""
+        # Add multiple movies
+        self.userprofile.recommended_movies.add(
+            self.movie1,
+            self.movie2,
+            self.movie3,
+            self.movie4
+        )
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that all were returned
+        self.assertEqual(len(response.data), 4)
+    
+    def test_clear_and_refresh_recommendations(self):
+        """Test 13: Clear and regenerate recommendations"""
+        # Add initial recommendations
+        self.userprofile.recommended_movies.add(self.movie1, self.movie2)
+        
+        # Check that it has 2
+        self.assertEqual(self.userprofile.recommended_movies.count(), 2)
+        
+        # Simulate refresh that clears and adds new ones
+        self.userprofile.recommended_movies.clear()
+        self.userprofile.recommended_movies.add(self.movie3, self.movie4)
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that it now has the new recommendations
+        self.assertEqual(len(response.data), 2)
+        movie_ids = [movie['external_id'] for movie in response.data]
+        self.assertNotIn(self.movie1.external_id, movie_ids)
+        self.assertIn(self.movie3.external_id, movie_ids)
+    
+    def test_recommendations_based_on_ratings(self):
+        """Test 14: Simulate recommendations based on ratings"""
+        # Create some ratings
+        Rating.objects.create(user=self.user, movie=self.movie1, score=9)
+        Rating.objects.create(user=self.user, movie=self.movie2, score=8)
+        
+        # Simulate that update_recommendations adds similar movies
+        self.userprofile.recommended_movies.add(self.movie3)  # Same director
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that it received recommendations
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(len(response.data), 0)
+    
+    def test_recommended_movies_not_duplicated(self):
+        """Test 15: Don't allow duplicate movies in recommendations"""
+        # Try to add the same movie twice
+        self.userprofile.recommended_movies.add(self.movie1)
+        self.userprofile.recommended_movies.add(self.movie1)
+        
+        response = self.client.get(self.recommendations_url)
+        
+        # Check that it only appears once (ManyToMany doesn't allow duplicates)
+        self.assertEqual(len(response.data), 1)
