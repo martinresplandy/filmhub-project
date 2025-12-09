@@ -33,7 +33,7 @@ jobs:
       - name: Test frontend
         working-directory: ./frontend
         run: |
-          npm test -- --watchAll=false --passWithNoTests || echo "frontend tests failed (ignored)"
+          npm test -- --watchAll=false --passWithNoTests
 
       - name: Build frontend
         working-directory: ./frontend
@@ -94,3 +94,4 @@ jobs:
         working-directory: .
         run: |
           python manage.py test
+          
