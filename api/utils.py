@@ -1,10 +1,12 @@
 import requests
 from enum import Enum
+import concurrent.futures
 
 from django.contrib.auth import authenticate
 
 from .serializers import UserSerializer, MovieSerializer, RatingSerializer
 from .models import Movie, Rating, UserProfile
+from .validators.shared import validate_rating_score
 
 
 API_BASE_URL = "https://api.themoviedb.org/3" 
@@ -46,201 +48,173 @@ def login_user(username, password):
 def get_all_ratings_for_user(user):
     return Rating.objects.filter(user=user), Status.SUCCESS
 
-def add_rating(rating: RatingSerializer):
-    if rating.is_valid():
+def add_rating(user, movie_external_id, score, comment=''):
+    validate_rating_score(score)
+    if user is not None and movie_external_id is not None:
+        # Check if the movie exists in our DB
         try:
-            Movie.objects.get(external_id=rating.validated_data['movie'].external_id)
+            movie_instance = Movie.objects.get(external_id=movie_external_id)
         except Movie.DoesNotExist:
-            create_movie_from_external_id(rating.validated_data['movie'].external_id)
-        if Rating.objects.filter(
-            user=rating.validated_data['user'],
-            movie=rating.validated_data['movie']
-        ).exists():
+            movie_instance, response_status = create_movie_from_external_id(movie_external_id)
+            if response_status != Status.SUCCESS:
+                return None, response_status
+        # Check if the rating already exists
+        if Rating.objects.filter(user=user, movie=movie_instance).exists():
             return None, Status.ALREADY_EXISTS
-        rating_instance = rating.save()
+        # Create and save the new rating
+        rating = Rating(user=user, movie=movie_instance, score=score, comment=comment)
+        rating.save()
+        return rating, Status.SUCCESS
+    return None, Status.FAILURE
+
+def update_rating(user, id, new_score, new_comment=''):
+    validate_rating_score(new_score)
+    try:
+        rating = Rating.objects.get(id=id)
+    except Rating.DoesNotExist:
+        return None, Status.NOT_FOUND
+    if rating is None:
+        return None, Status.NOT_FOUND
+    # Ensure the rating belongs to the user
+    if rating.user == user:
+        validate_rating_score(new_score)
+        rating_instance = rating
+        rating_instance.score = new_score
+        rating_instance.comment = new_comment
+        rating_instance.save()
         return rating_instance, Status.SUCCESS
     return None, Status.FAILURE
 
-def update_rating(rating: RatingSerializer):
-    if rating.is_valid():
-        try:
-            existing_rating = Rating.objects.get(
-                user=rating.validated_data['user'],
-                movie=rating.validated_data['movie']
-            )
-            if existing_rating:
-                existing_rating.score = rating.validated_data.get('score', existing_rating.score)
-                existing_rating.comment = rating.validated_data.get('comment', existing_rating.comment)
-                existing_rating.save()
-                return existing_rating, Status.SUCCESS
-            else:
-                return None, Status.NOT_FOUND
-        except Rating.DoesNotExist:
-            return None, Status.FAILURE
+def delete_rating(user, id):
+    try:
+        rating = Rating.objects.get(id=id)
+    except Rating.DoesNotExist:
+        return None, Status.NOT_FOUND
+    if rating is None:
+        return None, Status.NOT_FOUND
+    # Ensure the rating belongs to the user
+    if rating.user == user:
+        rating.delete()
+        return rating, Status.SUCCESS
     return None, Status.FAILURE
 
 # **** RECOMMENDED MOVIES **** #
 
-def get_recommended_movies_for_user(user_profile):
+def get_recommended_movies_for_user(user_profile: UserProfile):
+    # We optimized that function with concurrent executions
+    recommended = user_profile.recommended_movies.all()
+    # if the recommendation list is empty, update it
+    if len(recommended) == 0:
+        recommended = update_recommendations(user_profile)
     return user_profile.recommended_movies.all(), Status.SUCCESS
 
-
-def update_recommendations(user_profile):
-    # Clear existing recommendations
+def fetch_recommendations_chunk(url, params):
+    headers = {"accept": "application/json"}
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json().get('results', [])
+    
+def update_recommendations(user_profile: UserProfile):
+    
+    REVERSE_GENRE_MAP = {v.lower(): k for k, v in GENRE_MAP.items()}
+    REVERSE_KEYWORD_MAP = {v.lower(): k for k, v in KEYWORD_MAP.items()}
+    
     user_profile.recommended_movies.clear()
-
-    # Retrieve rated movies by the user
     ratings = user_profile.user.rating_set.all()
     
-    # Define the main conditions for the recommendation logic
-    liked_genre_names = set()
-    liked_keyword_names = set()
-    
+    liked_genre_ids = set()
+    liked_keyword_ids = set()
     for rating in ratings:
-        movie = rating.movie
-        if rating.score >= 6:
-            # Extract genre names
-            movie_genres = [g.strip() for g in movie.genre.split(',') if g.strip()]
-            liked_genre_names.update(movie_genres)
-            # Extract keyword names
-            movie_keywords = [k.strip() for k in movie.keyword.split(',') if k.strip()]
-            liked_keyword_names.update(movie_keywords)
+        if rating.score >= 3:
+            for name in [g.strip() for g in rating.movie.genre.split(',')]:
+                genre_id = REVERSE_GENRE_MAP.get(name.lower())
+                if genre_id: liked_genre_ids.add(str(genre_id))
+                
+            for name in [k.strip() for k in rating.movie.keyword.split(',')]:
+                keyword_id = REVERSE_KEYWORD_MAP.get(name.lower())
+                if keyword_id: liked_keyword_ids.add(str(keyword_id))
+
+    all_requests = []
+    base_params = {"api_key": API_KEY, "sort_by": "popularity.desc", "page": 1}
     
-    # Convert genre names back to IDs (invert GENRE_MAP)
-    genre_name_to_id = {v: k for k, v in GENRE_MAP.items()}
-    liked_genre_ids = []
-    for genre_name in liked_genre_names:
-        if genre_name in genre_name_to_id:
-            liked_genre_ids.append(genre_name_to_id[genre_name])
+    if liked_genre_ids:
+        combined_genre_params = {**base_params, "with_genres": ','.join(liked_genre_ids)}
+        all_requests.append((f"{API_BASE_URL}/discover/movie", combined_genre_params, GENRE_POINTS))
     
-    # Convert keyword names back to IDs (invert KEYWORD_MAP)
-    keyword_name_to_id = {v: k for k, v in KEYWORD_MAP.items()}
-    liked_keyword_ids = []
-    for keyword_name in liked_keyword_names:
-        if keyword_name in keyword_name_to_id:
-            liked_keyword_ids.append(keyword_name_to_id[keyword_name])
-    
-    # If no genres or keywords found, return empty
-    if not liked_genre_ids and not liked_keyword_ids:
-        return user_profile.recommended_movies.all()
-    
-    # Construct the header
-    headers = {
-        "accept": "application/json",
-    }
-    
+    if liked_keyword_ids:
+        combined_keyword_params = {**base_params, "with_keywords": ','.join(liked_keyword_ids)}
+        all_requests.append((f"{API_BASE_URL}/discover/movie", combined_keyword_params, KEYWORD_POINTS))
+
     recommended_set = {}
     
-    # Search by genres
-    for genre_id in liked_genre_ids:
-        try:
-            # Construct the request URL and params
-            api_url = f"{API_BASE_URL}/discover/movie"
-            params = {
-                "api_key": API_KEY,
-                "with_genres": genre_id,
-                "sort_by": "popularity.desc",
-                "page": 1
-            }
-            
-            # Execute the API Request
-            response = requests.get(api_url, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            # Adding points by genre matches
-            for item in data.get('results', []):
-                movie_id = item['id']
-                if movie_id not in recommended_set:
-                    recommended_set[movie_id] = GENRE_POINTS
-                else:
-                    recommended_set[movie_id] += GENRE_POINTS
-        except Exception as e:
-            continue
-    
-    # Search by keywords
-    for keyword_id in liked_keyword_ids:
-        try:
-            # Construct the request URL and params
-            api_url = f"{API_BASE_URL}/discover/movie"
-            params = {
-                "api_key": API_KEY,
-                "with_keywords": keyword_id,
-                "sort_by": "popularity.desc",
-                "page": 1
-            }
-            
-            # Execute the API Request
-            response = requests.get(api_url, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            # Adding points by keyword matches
-            for item in data.get('results', []):
-                movie_id = item['id']
-                if movie_id not in recommended_set:
-                    recommended_set[movie_id] = KEYWORD_POINTS
-                else:
-                    recommended_set[movie_id] += KEYWORD_POINTS
-        except Exception as e:
-            continue
-    
-    # Sort recommended movies by their accumulated score
+    # Use max_workers=5 for faster processing of network-bound tasks
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_request = {
+            executor.submit(fetch_recommendations_chunk, url, params): (url, params, points)
+            for url, params, points in all_requests
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_request):
+            _, _, points = future_to_request[future]
+            try:
+                results = future.result()
+                # Process the results from this specific chunk
+                for item in results:
+                    movie_id = item['id']
+                    recommended_set[movie_id] = recommended_set.get(movie_id, 0) + points
+            except Exception as exc:
+                print(f'Recommendation chunk failed: {exc}')
+
+    # 4. Sort and Filter Recommendations
     sorted_recommendations = sorted(
         recommended_set.items(), 
         key=lambda item: item[1], 
         reverse=True
     )
     
-    # If the movie is already watched, in watchlist, OR already rated, skip it
     watched_ids = set(user_profile.watched_movies.values_list('external_id', flat=True))
     watchlist_ids = set(user_profile.watch_list.values_list('external_id', flat=True))
-    rated_ids = set(user_profile.user.rating_set.values_list('movie__external_id', flat=True))
+    ratedlist_ids = set(ratings.values_list('movie__external_id', flat=True))
     
-    added_count = 0
     for movie_id, score in sorted_recommendations:
-        if movie_id in watched_ids or movie_id in watchlist_ids or movie_id in rated_ids:
+        if movie_id in watched_ids or movie_id in watchlist_ids or movie_id in ratedlist_ids:
             continue
-        
-        movie = None
+            
         try:
-            movie = Movie.objects.get(external_id=movie_id)
+            movie_instance = Movie.objects.get(external_id=movie_id)
         except Movie.DoesNotExist:
-            result = create_movie_from_external_id(movie_id)
-            if isinstance(result, tuple):
-                movie = result[0]
-            else:
-                movie = result
-        
-        if movie:
-            user_profile.recommended_movies.add(movie)
-            added_count += 1
-            # Limit to 20 recommendations
-            if added_count >= 20:
+            movie_tuple = create_movie_from_external_id(movie_id)
+            if movie_tuple[1] != Status.SUCCESS:
+                continue
+            movie_instance = movie_tuple[0]
+
+        if movie_instance:
+            user_profile.recommended_movies.add(movie_instance)
+            if user_profile.recommended_movies.count() >= 20:
                 break
-    
+            
     return user_profile.recommended_movies.all()
 
 # **** WATCHED MOVIES **** #
 
-def get_watched_movies_for_user(user_profile):
-    return user_profile.watched_movies.all()
+def get_watched_movies_for_user(user_profile: UserProfile):
+    return user_profile.watched_movies.all(), Status.SUCCESS
 
-def add_watched_movie(user_profile, movie_id):
-    movie = None
+def add_watched_movie(user_profile: UserProfile, movie_id):
     try:
-        movie = Movie.objects.get(external_id=movie_id)
+        movie_instance = Movie.objects.get(external_id=movie_id)
     except Movie.DoesNotExist:
-        movie = create_movie_from_external_id(movie_id)
-    if not movie:
-        return None
-    else:
-        if movie in user_profile.watched_movies.all():
-            return movie
-        user_profile.watched_movies.add(movie)
-        return movie
+        movie_instance, response_status = create_movie_from_external_id(movie_id)
+        if response_status != Status.SUCCESS:
+            return None, response_status
+    if movie_instance in user_profile.watched_movies.all():
+        return movie_instance, Status.ALREADY_EXISTS
+    if movie_instance in user_profile.watch_list.all():
+        user_profile.watch_list.remove(movie_instance)
+    user_profile.watched_movies.add(movie_instance)
+    return movie_instance, Status.SUCCESS
     
-def remove_watched_movie(user_profile, movie_id):
+def remove_watched_movie(user_profile: UserProfile, movie_id):
     try:
         movie = Movie.objects.get(external_id=movie_id)
         if movie in user_profile.watched_movies.all():
@@ -253,24 +227,22 @@ def remove_watched_movie(user_profile, movie_id):
     
 # **** WATCH LIST **** #
 
-def get_watch_list_for_user(user_profile):
+def get_watch_list_for_user(user_profile: UserProfile):
     return user_profile.watch_list.all(), Status.SUCCESS
 
-def add_watch_list_movie(user_profile, movie_id):
-    movie = None
+def add_watch_list_movie(user_profile: UserProfile, movie_id):
     try:
-        movie = Movie.objects.get(external_id=movie_id)
+        movie_instance = Movie.objects.get(external_id=movie_id)
     except Movie.DoesNotExist:
-        movie = create_movie_from_external_id(movie_id)
-    if not movie:
-        return None, Status.FAILURE
-    else:
-        if movie in user_profile.watch_list.all():
-            return movie, Status.ALREADY_EXISTS
-        user_profile.watch_list.add(movie)
-        return movie, Status.SUCCESS
+        movie_instance, response_status = create_movie_from_external_id(movie_id)
+        if response_status != Status.SUCCESS:
+            return None, response_status
+    if movie_instance in user_profile.watch_list.all():
+        return movie_instance, Status.ALREADY_EXISTS
+    user_profile.watch_list.add(movie_instance)
+    return movie_instance, Status.SUCCESS
     
-def remove_watch_list_movie(user_profile, movie_id):
+def remove_watch_list_movie(user_profile: UserProfile, movie_id):
     try:
         movie = Movie.objects.get(external_id=movie_id)
         if movie in user_profile.watch_list.all():
@@ -284,115 +256,101 @@ def remove_watch_list_movie(user_profile, movie_id):
 # **** MOVIE STORING **** #
 
 def create_movie_from_external_id(movie_id):
-        # If the movie doesn't exist (tested in the previous function), proceed to API call to integrate it into our DB
-        try:
-            # Construct the API URL and headers
-            api_url = f"{API_BASE_URL}/movie/{movie_id}"
-            headers = {
-                "accept": "application/json",
-            }
-            params = {
-                "api_key": API_KEY,
-            }
-
-            # Execute the API Request
-            response = requests.get(api_url, headers=headers, params=params)
-            response.raise_for_status() # Raise exception for bad status codes (4xx or 5xx)
-
-            # Parse the JSON response
-            data = response.json()
-
-            # Create a new Movie instance
-            movie = Movie(external_id=movie_id)
-
-            # Extract relevant fields from the API response
-            if not data.get('title') or not data.get('release_date'):
-                 raise ValueError("Missing essential movie data from API.")
-            movie.title = data.get('title')
-            movie.poster_url = f"https://image.tmdb.org/t/p/w500{data.get('poster_path')}" if data.get('poster_path') else ""
-            movie.description = data.get('overview', '') 
-            movie.director = data.get('director','Unknown')
-            movie.duration = data.get('runtime', 0)
-            
-            # GENRES
-            genre_names_list = []
-            for genre in data.get('genres', []):
-                genre_names_list.append(genre['name']) 
-                GENRE_MAP[genre['id']] = genre['name']
-            # Store the main genres as a comma-separated string, limited by your max_length
-            movie.genre = ", ".join(genre_names_list)[:255]
-
-            # KEYWORDS
-            # Fetch keywords from a separate endpoint
-            keywords_url = f"{API_BASE_URL}/movie/{movie_id}/keywords"
-            keywords_response = requests.get(keywords_url, headers=headers, params=params)
-            keywords_response.raise_for_status()
-            keywords_data = keywords_response.json()
-
-            keyword_names_list = []
-            for k in keywords_data.get('keywords', []):
-                keyword_names_list.append(k['name'])
-                KEYWORD_MAP[k['id']] = k['name']
-            
-            movie.keyword = ", ".join(keyword_names_list)[:255]
-
-            # YEAR
-            # Extract year from release_date (e.g., "2023-10-20")
-            release_date = data.get('release_date')
-            movie.year = int(release_date.split('-')[0]) if release_date else 0
-
-            # Save the new movie to the database
-            movie.save()
-            return movie, Status.SUCCESS
-        except requests.exceptions.HTTPError as e:
-            return None, Status.FAILURE
-            
-        except requests.exceptions.RequestException as e:
-            return None, Status.FAILURE
-            
-        except Exception as e:
-            return None, Status.FAILURE
+    # If the movie doesn't exist (tested in the previous function), proceed to API call to integrate it into our DB
+    try:
+        # Construct the API URL and headers
+        api_url = f"{API_BASE_URL}/movie/{movie_id}"
+        headers = {
+            "accept": "application/json",
+        }
+        params = {
+            "api_key": API_KEY,
+        }
+        movie = get_movie_from_external_API(api_url, headers, params)
+        # Save the new movie to the database
+        movie.save()
+        return movie, Status.SUCCESS
+    except requests.exceptions.HTTPError as e:
+        # Handle specific HTTP errors (e.g., 404 Not Found)
+        print(f"API HTTP Error for ID {movie_id}: {e}")
+        return None, Status.FAILURE
+        
+    except requests.exceptions.RequestException as e:
+        # Handle connection errors, timeouts, etc.
+        print(f"API Connection Error: {e}")
+        return None, Status.FAILURE
+        
+    except Exception as e:
+        # Handle JSON parsing or other general errors
+        print(f"General Error processing movie {movie_id}: {e}")
+        return None, Status.FAILURE
 
 # **** MOVIE CATALOG **** #
 
-def movies_catalog(content):
-    if content:
-        # return catalog with different sections
-        catalog = {}
+def fetch_and_serialize_section(section_name, url, params):
+    try:
+        movie_list = get_movies_from_external_API(url, headers={"accept": "application/json"}, params=params)
+        return section_name, MovieSerializer(movie_list, many=True).data
+    except Exception as e:
+        print(f"Error fetching section {section_name}: {e}")
+        return section_name, []
+
+def movies_catalog():
+    # We optimized the function with multithreading
+    requests_to_run = {
+        "popular": {
+            "url": f"{API_BASE_URL}/movie/popular",
+            "params": {"api_key": API_KEY, "page": 1}
+        },
+        "top_rated": {
+            "url": f"{API_BASE_URL}/movie/top_rated",
+            "params": {"api_key": API_KEY, "page": 1}
+        },
+        "action": {
+            "url": f"{API_BASE_URL}/discover/movie",
+            "params": {"api_key": API_KEY, "with_genres": 28, "sort_by": "popularity.desc", "page": 1}
+        },
+        "comedy": {
+            "url": f"{API_BASE_URL}/discover/movie",
+            "params": {"api_key": API_KEY, "with_genres": 35, "sort_by": "popularity.desc", "page": 1}
+        },
+        "drama": {
+            "url": f"{API_BASE_URL}/discover/movie",
+            "params": {"api_key": API_KEY, "with_genres": 18, "sort_by": "popularity.desc", "page": 1}
+        }
+    }
+    
+    catalog = {}
+    
+    # Use ThreadPoolExecutor to run all requests concurrently (5 workers for 5 requests)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_section = {
+            executor.submit(
+                fetch_and_serialize_section, 
+                name, 
+                data["url"], 
+                data["params"]
+            ): name for name, data in requests_to_run.items()
+        }
         
-        # popular movies
-        url = f"{API_BASE_URL}/movie/popular"
-        params = {"api_key": API_KEY, "page": 1}
-        catalog["popular"] = fetch_movies(url, params, limit=20)
-        
-        # top rated
-        url = f"{API_BASE_URL}/movie/top_rated"
-        params = {"api_key": API_KEY, "page": 1}
-        catalog["top_rated"] = fetch_movies(url, params, limit=20)
-        
-        # action
-        url = f"{API_BASE_URL}/discover/movie"
-        params = {"api_key": API_KEY, "with_genres": 28, "sort_by": "popularity.desc", "page": 1}
-        catalog["action"] = fetch_movies(url, params, limit=20)
-        
-        # comedy
-        url = f"{API_BASE_URL}/discover/movie"
-        params = {"api_key": API_KEY, "with_genres": 35, "sort_by": "popularity.desc", "page": 1}
-        catalog["comedy"] = fetch_movies(url, params, limit=20)
-        
-        # drama
-        url = f"{API_BASE_URL}/discover/movie"
-        params = {"api_key": API_KEY, "with_genres": 18, "sort_by": "popularity.desc", "page": 1}
-        catalog["drama"] = fetch_movies(url, params, limit=20)
-        
-        return catalog, Status.SUCCESS
-    return {}, Status.FAILURE
+        # Collect results as they complete
+        for future in concurrent.futures.as_completed(future_to_section):
+            section_name = future_to_section[future]
+    
+            try:
+                _, serialized_data = future.result()
+                catalog[section_name] = serialized_data
+            except Exception as exc:
+                print(f'{section_name} generated an unhandled exception: {exc}')
+                catalog[section_name] = []
+                
+    return catalog, Status.SUCCESS
 
 # **** MOVIE SEARCH **** #
 
 def movies_search(content, search_type):
     # handle search
-    if content and search_type:
+    if content != '' and search_type != '':
         if search_type == 'director':
             movies = search_by_director(content)
         elif search_type == 'genre':
@@ -401,7 +359,7 @@ def movies_search(content, search_type):
             # default is title search
             url = f"{API_BASE_URL}/search/movie"
             params = {"api_key": API_KEY, "query": content, "page": 1}
-            movies = fetch_movies(url, params, limit=20)
+            movies = get_movies_from_external_API(url, None, params)
         
         return movies, Status.SUCCESS
     return [], Status.FAILURE
@@ -440,132 +398,96 @@ def search_by_director(director_name):
                     result.append(formatted)
         
         return result
-    except:
+    except requests.exceptions.RequestException as e:
+        print(f"Director Search API Error: {e}")
         return []
-
-def search_by_genre(genre_name):
-    try:
-        # look up the genre id
-        genre_id = None
-        for gid, gname in GENRE_MAP.items():
-            if gname.lower() == genre_name.lower():
-                genre_id = gid
-                break
-        
-        if not genre_id:
-            return []
-        
-        # get movies for this genre
-        url = f"{API_BASE_URL}/discover/movie"
-        params = {"api_key": API_KEY, "with_genres": genre_id, "sort_by": "popularity.desc", "page": 1}
-        response = requests.get(url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
-        
-        result = []
-        for movie in movies:
-            if len(result) >= 20:
-                break
-            
-            formatted = format_movie(movie)
-            if formatted:
-                result.append(formatted)
-        
-        return result
-    except:
-        return []
-
-# **** MOVIE FORMAT AND SEARCH **** #
-
-def format_movie(movie):
-    """
-    Formats movie data from TMDB API to the format used in the frontend.
-    
-    Args:
-        movie: Dictionary with movie data from TMDB API
-        
-    Returns:
-        Formatted dictionary or None if data is invalid
-    """
-    # check if movie has the required fields
-    title = movie.get('title', '').strip()
-    poster = movie.get('poster_path')
-    movie_id = movie.get('id')
-    
-    if not title or not poster or not movie_id:
-        return None
-    
-    # get genres
-    genre_ids = movie.get('genre_ids', [])
-    genre_names = []
-    for genre_id in genre_ids:
-        if genre_id in GENRE_MAP:
-            genre_names.append(GENRE_MAP[genre_id])
-        else:
-            genre_names.append("Unknown")
-    
-    if genre_names:
-        genre_string = ", ".join(genre_names)
-    else:
-        genre_string = "Unknown"
-    
-    # extract year
-    date = movie.get('release_date', '')
-    year = None
-    if date:
-        try:
-            year = int(date.split('-')[0])
-        except:
-            pass
-    
-    # build poster url
-    poster_url = f"https://image.tmdb.org/t/p/w185{poster}"
-    
-    # get rating
-    rating = movie.get('vote_average', 0)
-    try:
-        rating_float = round(float(rating), 1)
-    except:
-        rating_float = 0.0
-    
-    description = movie.get('overview', '')
-
-    return {
-        "external_id": movie_id,
-        "title": title,
-        "poster_url": poster_url,
-        "genre": genre_string,
-        "year": year,
-        "average_rating": rating_float,
-        "description": description,
-    }
-
-def fetch_movies(url, params, limit=20):
-    """
-    Fetches movies from TMDB API and returns formatted list.
-    
-    Args:
-        url: TMDB API URL
-        params: Request parameters
-        limit: Maximum number of movies to return (default: 20)
-        
-    Returns:
-        List of formatted movies
-    """
-    try:
-        response = requests.get(url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
-        
-        result = []
-        for movie in movies:
-            if len(result) >= limit:
-                break
-            
-            formatted = format_movie(movie)
-            if formatted:
-                result.append(formatted)
-        
-        return result
     except Exception as e:
+        print(f"General Error in Director Search: {e}")
         return []
+
+def search_by_genre(genre_name, limit=20):
+    REVERSE_GENRE_MAP = {v.lower(): k for k, v in GENRE_MAP.items()}
+    genre_id = REVERSE_GENRE_MAP.get(genre_name.lower())
+    if not genre_id:
+        return []
+    # get movies for this genre
+    url = f"{API_BASE_URL}/discover/movie"
+    params = {"api_key": API_KEY, "with_genres": genre_id, "sort_by": "popularity.desc", "page": 1}
+    
+    result = get_movies_from_external_API(url, None, params)
+    result = result[:limit]
+    return result
+
+# **** MOVIES FROM EXTERNAL API **** #
+
+def get_movies_from_external_API(url, headers={}, params={}, limit=20):
+    # Execute the API Request
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status() # Raise exception for bad status codes (4xx or 5xx)
+
+    # Parse the JSON response
+    json_body = response.json()
+
+    movies = []
+    
+    for data in json_body.get('results'):
+        if (len(movies) >= limit):
+            break
+        movies.append(format_movie(data))
+    return movies
+
+def get_movie_from_external_API(url, headers, params):
+    # Execute the API Request
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status() # Raise exception for bad status codes (4xx or 5xx)
+
+    # Parse the JSON response
+    data = response.json()
+
+    return format_movie(data)
+    
+# **** FORMAT MOVIE FROM EXTERNAL API **** #
+
+def format_movie(movie_obj: dict):
+    # Checking the object type
+    if not movie_obj.get('title') or not movie_obj.get('id'):
+        raise ValueError("Missing essential movie data from API.")
+
+    standard_headers = {"accept": "application/json"}
+    standard_params = {"api_key": API_KEY,}
+
+    # Create a new Movie instance
+    movie = Movie(external_id=movie_obj.get('id'))
+    movie.title = movie_obj.get('title')
+    movie.poster_url = f"https://image.tmdb.org/t/p/w500{movie_obj.get('poster_path')}" if movie_obj.get('poster_path') else ""
+    movie.description = movie_obj.get('overview', '') 
+    movie.director = movie_obj.get('director','Unknown')
+    movie.duration = movie_obj.get('runtime', 0)
+    
+    # GENRES
+    genre_names_list = []
+    for genre in movie_obj.get('genres', []):
+        genre_names_list.append(genre['name']) 
+        GENRE_MAP[genre['id']] = genre['name']
+    # Store the main genres as a comma-separated string, limited by your max_length
+    movie.genre = ", ".join(genre_names_list)[:255]
+
+    # KEYWORDS
+    # Fetch keywords from a separate endpoint
+    keywords_url = f"{API_BASE_URL}/movie/{movie_obj.get('id')}/keywords"
+    keywords_response = requests.get(keywords_url, headers=standard_headers, params=standard_params)
+    keywords_response.raise_for_status()
+    keywords_data = keywords_response.json()
+
+    keyword_names_list = []
+    for k in keywords_data.get('keywords', []):
+        keyword_names_list.append(k['name'])
+        KEYWORD_MAP[k['id']] = k['name']
+    
+    movie.keyword = ", ".join(keyword_names_list)[:255]
+
+    # YEAR
+    # Extract year from release_date (e.g., "2023-10-20")
+    release_date = movie_obj.get('release_date')
+    movie.year = int(release_date.split('-')[0]) if release_date else 0
+    return movie
