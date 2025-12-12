@@ -1,6 +1,6 @@
 import { movieService } from './movieService';
 
-API_URL = 'https://filmhub-project.onrender.com/api';
+const API_URL = 'https://filmhub-project.onrender.com/api';
 
 // Mock the global fetch function
 global.fetch = jest.fn();
