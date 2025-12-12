@@ -88,6 +88,10 @@ jobs:
       - name: Run migrations (PostgreSQL)
         working-directory: .
         run: |
+          export DB_HOST=${{ env.DB_HOST }}
+          export DB_USER=${{ env.DB_USER }}
+          export DB_PASSWORD=${{ env.DB_PASSWORD }}
+          export DB_NAME=${{ env.DB_NAME }}
           make migrate_ci
 
       - name: Run Django tests

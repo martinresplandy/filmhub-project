@@ -32,9 +32,10 @@ wait_for_db: install
 
 wait_for_ci_db: install
 	@echo "Waiting for PostgreSQL in CI to be ready..."
+	DB_HOST_VAL=$(DB_HOST) DB_USER_VAL=$(DB_USER) DB_NAME_VAL=$(DB_NAME) DB_PASSWORD_VAL=$(DB_PASSWORD) \
 	SUCCESS_FLAG=1; \
 	for i in $$(seq 1 20); do \
-		if PGPASSWORD=$$DB_PASSWORD pg_isready -h $$DB_HOST -U $$DB_USER -d $$DB_NAME > /dev/null 2>&1; then \
+		if PGPASSWORD=$$DB_PASSWORD_VAL pg_isready -h $$DB_HOST_VAL -U $$DB_USER_VAL -d $$DB_NAME_VAL > /dev/null 2>&1; then \
 			echo "PostgreSQL is fully available after $$i attempts."; \
 			SUCCESS_FLAG=0; \
 			break; \
