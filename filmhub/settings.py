@@ -72,6 +72,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "filmhub.wsgi.application"
 
+DB_HOST_PROD = os.environ.get('DB_HOST') # Render host
+
+if DB_HOST_PROD:
+    # Configuration pour Render (Production)
+    DB_HOST = DB_HOST_PROD
+elif DEBUG:
+    # Configuration locale/CI (utilisée si DB_HOST n'est pas défini, ex: dans CI)
+    # 'postgres' est souvent l'hôte par défaut si vous exécutez le service DB via Docker Compose/CI
+    DB_HOST = os.environ.get('DB_HOST_CI', 'postgres') 
+else:
+    # Fallback de sécurité (ne devrait pas être atteint en production/CI)
+    raise ValueError("DB_HOST environment variable is not set!")
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -79,10 +91,10 @@ WSGI_APPLICATION = "filmhub.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'HOST': os.environ.get('DB_HOST'),
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': DB_HOST,
+        'NAME': os.environ.get('DB_NAME', 'filmhub_ci'),
+        'USER': os.environ.get('DB_USER', 'user_ci'), 
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'password_ci'),
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
