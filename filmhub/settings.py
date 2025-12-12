@@ -46,9 +46,7 @@ INSTALLED_APPS = [
 # **********************************************
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # WhiteNoise DOIT être ici (juste après SecurityMiddleware)
     'whitenoise.middleware.WhiteNoiseMiddleware', 
-    
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -167,6 +165,9 @@ if DEBUG:
 # CONFIGURATION WHITE NOISE
 # **********************************************
 STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
