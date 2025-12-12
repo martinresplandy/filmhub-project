@@ -1,5 +1,7 @@
 import { authService } from './authService';
 
+API_URL = 'https://filmhub-project.onrender.com/api';
+
 // Mock the global fetch function
 global.fetch = jest.fn();
 
@@ -39,7 +41,7 @@ describe('authService', () => {
 
     await authService.register('testuser', 'test@example.com', 'password');
     expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/register/',
+        API_URL+'/register/',
         expect.objectContaining({
             method: 'POST',
             body: JSON.stringify({ username: 'testuser', email: 'test@example.com', password: 'password' }),
