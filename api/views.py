@@ -31,6 +31,12 @@ from .utils import (
     movies_search,
 )
 
+from django.shortcuts import render
+
+# **** INDEX / HOME **** #
+def index(request):
+    return render(request, 'index.html')
+
 # ****  USER **** #
 
 @api_view(['POST'])
