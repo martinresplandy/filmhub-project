@@ -1,4 +1,6 @@
 import { authService } from './authService';
+import { API_URL } from '../config';
+
 
 global.fetch = jest.fn();
 
@@ -38,7 +40,7 @@ describe('authService', () => {
 
     await authService.register('testuser', 'test@example.com', 'password');
     expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/register/',
+        `${API_URL}/register/`,
         expect.objectContaining({
             method: 'POST',
             body: JSON.stringify({ username: 'testuser', email: 'test@example.com', password: 'password' }),

@@ -1,3 +1,20 @@
+# --- Stage 1: Build Frontend ---
+FROM node:18 AS build-stage
+
+WORKDIR /app/frontend
+
+COPY ./frontend/package*.json ./
+RUN npm ci
+
+COPY ./frontend/ ./
+
+# Accept API_URL as a build argument
+ARG REACT_APP_API_URL
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+RUN npm run build
+
+# --- Stage 2: Backend & Final Image ---
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
@@ -18,11 +35,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire backend project directory
 COPY . .
 
-# --- This is the key part for the frontend ---
-# Copy the pre-built frontend files (from the CI job artifact)
-# into the location your Django app serves static files from.
-COPY ./frontend/build /app/staticfiles
-# ----------------------------------------------
+# Copy the build output from the previous stage
+COPY --from=build-stage /app/frontend/build /app/staticfiles
 
 # Expose the port the app runs on
 EXPOSE 8000
