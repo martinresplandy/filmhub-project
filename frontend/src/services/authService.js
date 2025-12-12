@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000/api";
+const API_URL = "https://filmhub-project.onrender.com/api/";
 
 export const authService = {
   login: async (username, password) => {
