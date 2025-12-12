@@ -1,6 +1,5 @@
 import { movieService } from './movieService';
 
-// Mock the global fetch function
 global.fetch = jest.fn();
 
 describe('movieService', () => {
@@ -48,15 +47,13 @@ describe('movieService', () => {
   });
   
   it('getMovie fetches a specific movie', async () => {
-      // Mock successful responses for all parallel requests
-      // catalog, recommendations, watchlist, watched
       const movie = { id: 1, title: 'Target Movie', external_id: 123 };
       
       fetch.mockImplementation((url) => {
           if (url.includes('/movies/') && !url.includes('watch_list') && !url.includes('watched')) {
               return Promise.resolve({
                   ok: true,
-                  json: async () => ({ popular: [movie] }) // Mocking structure based on service logic
+                  json: async () => ({ popular: [movie] })
               });
           }
            return Promise.resolve({

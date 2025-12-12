@@ -1,6 +1,5 @@
 import { authService } from './authService';
 
-// Mock the global fetch function
 global.fetch = jest.fn();
 
 describe('authService', () => {
