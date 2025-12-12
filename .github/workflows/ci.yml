@@ -38,6 +38,8 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
+        env:
+          REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL || 'http://localhost:8000/api' }}
 
       - name: Upload frontend build artifact
         uses: actions/upload-artifact@v4
