@@ -44,12 +44,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnp
 .pnp.js
-build/
 dist/
 .cache/
 
 # React build
 # To make the all in one app works, we add the build folder to the repository
+# build/
 # frontend/build/
 
 # Testing
