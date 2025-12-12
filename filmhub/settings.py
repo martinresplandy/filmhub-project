@@ -66,41 +66,36 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "filmhub.wsgi.application"
 
-DB_HOST_RENDER = os.environ.get('DB_HOST')
-
-IS_CI = os.environ.get('CI_ENVIRONMENT', 'False').lower() == 'true'
+DB_HOST_RENDER = os.environ.get('DB_HOST') # Contient l'hôte Render en prod, sinon None.
 
 if DB_HOST_RENDER:
-    # 1. Production (Render)
     DB_HOST = DB_HOST_RENDER
-elif IS_CI:
-    DB_HOST = os.environ.get('CI_DB_HOST', 'localhost') 
-    DB_NAME_CI = os.environ.get('CI_DB_NAME', 'test_db')
-    DB_USER_CI = os.environ.get('CI_DB_USER', 'runner') 
-    DB_PASSWORD_CI = os.environ.get('CI_DB_PASSWORD', 'password')
+    DB_NAME_VAL = os.environ.get('DB_NAME')
+    DB_USER_VAL = os.environ.get('DB_USER')
+    DB_PASSWORD_VAL = os.environ.get('DB_PASSWORD')
 else:
-    raise ValueError("Database host environment variable is not configured!")
+    DB_HOST = os.environ.get('CI_DB_HOST', 'localhost') 
+    DB_NAME_VAL = os.environ.get('CI_DB_NAME', 'test_db_ci')
+    DB_USER_VAL = os.environ.get('CI_DB_USER', 'user_ci')
+    DB_PASSWORD_VAL = os.environ.get('CI_DB_PASSWORD', 'password_ci')
 
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'HOST': DB_HOST, 
-        'NAME': os.environ.get('DB_NAME') if DB_HOST_RENDER else DB_NAME_CI,
-        'USER': os.environ.get('DB_USER') if DB_HOST_RENDER else DB_USER_CI,
-        'PASSWORD': os.environ.get('DB_PASSWORD') if DB_HOST_RENDER else DB_PASSWORD_CI,
+        'NAME': DB_NAME_VAL,
+        'USER': DB_USER_VAL, 
+        'PASSWORD': DB_PASSWORD_VAL,
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
-# Check to prevent running with incomplete settings if needed:
 if os.environ.get('DEBUG') == 'False' and not os.environ.get('DB_HOST'):
     raise ValueError("DB_HOST environment variable is not set for production!")
 
-
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
