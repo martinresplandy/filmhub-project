@@ -80,13 +80,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Wait for PostgreSQL readiness
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for PostgreSQL
         run: |
           echo "Waiting for PostgreSQL service to be available..."
           SUCCESS_FLAG=1
           for i in $(seq 1 20); do
-            # Utilise les variables d'environnement du job
-            # Le port doit être explicite.
             if PGPASSWORD=$DB_PASSWORD pg_isready -h $DB_HOST -p 5432 -U $DB_USER -d $DB_NAME > /dev/null 2>&1; then
               echo "PostgreSQL is fully available after $i attempts."
               SUCCESS_FLAG=0
