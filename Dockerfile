@@ -1,5 +1,6 @@
-# --- Stage 1: Build Frontend ---
-FROM node:18 AS build-stage
+# --- Stage 1: Build Frontend (node:18) ---
+
+FROM node:18 AS frontend-build
 
 WORKDIR /app/frontend
 
@@ -8,63 +9,50 @@ RUN npm ci
 
 COPY ./frontend/ ./
 
-# Accept API_URL as a build argument
 ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
 RUN npm run build
 
-# --- Stage 2: Backend & Final Image ---
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+FROM python:3.11-slim AS backend-deps
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# Set work directory
-WORKDIR /app
-
-# Set environment variables
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
 
-# Install Python dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         gcc \
         python3-dev \
         libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-# Copy requirements first to leverage Docker layer caching
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /app
+
 COPY ./api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# --- Stage 2: Production Image ---
 
-# --- Stage 2: Final Production Image ---
-FROM python:3.11-slim
+FROM python:3.11-slim AS production
 
-# Set environment variables
 ENV PYTHONUNBUFFERED 1
 ENV DJANGO_SETTINGS_MODULE=filmhub.settings
 
-# Set work directory
 WORKDIR /app
 
-# Copy installed dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin/gunicorn /usr/local/bin/
+COPY --from=backend-deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=backend-deps /usr/local/bin/gunicorn /usr/local/bin/
 
-COPY . /app/
+COPY ./api/ /app/
+
+COPY --from=frontend-build /app/frontend/build /app/build 
 
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Expose the port Gunicorn runs on
 EXPOSE 8000
 
-# Set the entrypoint to the script for robust startup
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
-# The default command to run when the container starts (executed by the entrypoint script)
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "filmhub.wsgi:application"]
