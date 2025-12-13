@@ -68,7 +68,7 @@ jobs:
       DB_NAME: filmhub_db
       DB_USER: postgres
       DB_PASSWORD: film123hub
-      DB_HOST: postgres
+      DB_HOST: 127.0.0.1
       DB_PORT: 5432
     
     steps:
@@ -87,13 +87,13 @@ jobs:
         run: |
           echo "Waiting for PostgreSQL service to be available..."
           SUCCESS_FLAG=1
-          for i in $(seq 1 20); do
+          for i in $(seq 1 30); do
             if PGPASSWORD=$DB_PASSWORD pg_isready -h $DB_HOST -p 5432 -U $DB_USER -d $DB_NAME > /dev/null 2>&1; then
               echo "PostgreSQL is fully available after $i attempts."
               SUCCESS_FLAG=0
               break
             fi
-            echo "Waiting for PostgreSQL ($i/20)..."
+            echo "Waiting for PostgreSQL ($i/30)..."
             sleep 3
           done
           if [ "$SUCCESS_FLAG" -ne 0 ]; then
