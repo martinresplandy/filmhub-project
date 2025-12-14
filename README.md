@@ -19,6 +19,8 @@ to start the backend in the main folder python maange.py runserver
 
 to start the frontend cd frontend : npm start
 
+Everything is delpoyed now
+
 # FRONTEND
 
 # BACKEND
