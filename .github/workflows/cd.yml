@@ -40,7 +40,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            REACT_APP_API_URL=${{ vars.REACT_APP_API_URL || 'http://localhost:8000/api' }}
+            REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL }}
   deploy:
     name: Deploy to Render
     needs: release

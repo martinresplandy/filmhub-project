@@ -15,7 +15,9 @@ COPY ./frontend/ ./
 
 # Accept API_URL as a build argument
 ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+RUN echo "API URL is set to $REACT_APP_API_URL"
 
 # Build the React application
 RUN npm run build
